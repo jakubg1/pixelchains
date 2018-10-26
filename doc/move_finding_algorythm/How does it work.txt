@@ -1,0 +1,20 @@
+Pixelchains algorythm to check if there are any moves left
+
+----
+
+It's simple.
+
+First, we need to pick all chains that has at least two neighbors of same color.
+
+Then, for each chain, we're putting into a temporary list that chain and its neighbors at the same color.
+
+For each item in that temporary list, we're making a list of all possible rotation combinations:
+for example, we have 3 chains (each has 2 possible rotations) in a temporary list, therefore we'll iterate on 8 possible combinations:
+000, 001, 010, 011, 100, 101, 110, 111
+The maximum is 1024 (5 x 4 possible rotations (3-shape)), but the solution would be found in 1st iteration, so it won't lag almost at all.
+
+In every iteration we rotate given chains and check if it made a proper match. If so, the original rotations are returned back and the whole function returns "true".
+
+If we run out of iterations, we move to the next chain that has at least two neighbors of same color.
+
+If we run out of these, there aren't any matches and the whole function returns "false".
