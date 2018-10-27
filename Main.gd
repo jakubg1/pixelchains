@@ -9,6 +9,7 @@ func _ready():
 	set_process_input(true)
 	set_process(true)
 	
+	prepareCharacterSet()
 	startGame()
 
 func rotateArray(array, offset):
@@ -41,9 +42,8 @@ func randomOrder(array):
 func _input(event):
 	if event.is_action_pressed("mouseLeft"):
 		rotateChain(exactBoardTilePos(mousePos))
-	#if event.is_action_pressed("mouseRight"):
-	#	if interactionAllowed:
-	#		shuffleChains()
+	if event.is_action_pressed("mouseRight"):
+		pass # actions done with right mouse click = currently nothing, but add them here
 
 func _process(delta):
 	dt = delta
@@ -52,7 +52,6 @@ func _process(delta):
 	windowSize = get_viewport().size
 	
 	calculateChainAnimation()
-	#print(str(1 / delta))
 	
 	update()
 
@@ -86,6 +85,7 @@ var interactionAllowed = true
 
 func startGame():
 	initBoard()
+	calculateVisibleChainConnections()
 
 func initBoard():
 	var excludedTiles = [Vector2(0, 0), Vector2(3, 0), Vector2(4, 0), Vector2(5, 0), Vector2(8, 0), Vector2(0, 4), Vector2(1, 4), Vector2(7, 4), Vector2(8, 4), Vector2(0, 8), Vector2(3, 8), Vector2(4, 8), Vector2(5, 8), Vector2(8, 8), ]
@@ -96,8 +96,8 @@ func initBoard():
 			#if j < 3 || j > 5:
 			#if i <= j:
 			#if random(1, 8) > 1:
-			if (i >= 3 && i <= 5) || (j >= 3 && j <= 5):
-				boardTiles[boardPos] = {"chain":null}
+			#if (i >= 3 && i <= 5) || (j >= 3 && j <= 5):
+			boardTiles[boardPos] = {"chain":null}
 	initChains()
 
 func initChains():
@@ -113,10 +113,10 @@ func initChains():
 
 func randomChainData():
 	var chainColor = random(0, 2)
-	#if random(1, 100) == 1:
-	#	chainColor = -2
-	#if random(1, 20) == 1:
-	#	chainColor = -1
+	if random(1, 100) == 1:
+		chainColor = -2
+	if random(1, 50) == 1:
+		chainColor = -1
 	var chainShape = 2
 	if random(1, 5) == 1:
 		chainShape = 3
@@ -130,10 +130,7 @@ func randomChainData():
 		"rotationStep":0,
 		"rotationStepTime":0,
 		"rotationActive":false,
-		#"deletionStep":0,
-		#"deletionStepTime":0,
-		#"deletionStepOffset":Vector2(0, 0),
-		#"deletionActive":false,
+		"visibleConnections":[false, false, false, false],
 		"fallOffset":0,
 		"fallSpeed":0,
 		"shuffleTime":0,
@@ -174,6 +171,9 @@ func getChainNeighbors(chainPos):
 			chainNeighbors.append(neighTile(chainPos, i))
 	return chainNeighbors
 
+func doesColorsMatch(color1, color2):
+	return color1 == color2 || (color1 == -2 || color2 == -2)
+
 func isChainConnected(chainPos, direction):
 	var chain = getChain(chainPos)
 	var chainNeighbor = getChainNeighbor(chainPos, direction)
@@ -183,7 +183,7 @@ func isChainConnected(chainPos, direction):
 	var chainConnectionsAvailable = getChainConnectionsAvailable(chainPos)
 	var chainNeighborConnectionsAvailable = getChainConnectionsAvailable(chainNeighborPos)
 	var shapesMatch = chainConnectionsAvailable[direction] && chainNeighborConnectionsAvailable[(direction + 2) % 4]
-	var colorsMatch = (chain["color"] == chainNeighbor["color"]) || (chain["color"] == -2 || chainNeighbor["color"] == -2)
+	var colorsMatch = doesColorsMatch(chain["color"], chainNeighbor["color"])
 	return shapesMatch && colorsMatch
 
 func getChainConnections(chainPos):
@@ -261,8 +261,6 @@ func detectChainMatches():
 		score += ((chainMatch.size() - 2) * 100) * combo
 		combo += 1
 		brokenChains += chainMatch.size()
-		print(score)
-		print(brokenChains)
 	if !chainMatches.empty():
 		fillHoles()
 		fillHolesUp()
@@ -296,7 +294,6 @@ func fillHolesUp():
 				placedChains += 1
 
 func checkMoves():
-	print("Start")
 	for i in range(boardTiles.size()):
 		var boardPos = boardTiles.keys()[i]
 		var chain = getChain(boardPos)
@@ -307,7 +304,7 @@ func checkMoves():
 		for j in range(chainNeighbors.size()):
 			var chainNeighborPos = chainNeighbors[j]
 			var chainNeighbor = getChain(chainNeighborPos)
-			if chainNeighbor != null && chainNeighbor["color"] == chain["color"]:
+			if chainNeighbor != null && doesColorsMatch(chain["color"], chainNeighbor["color"]):
 				chainMatches.append(chainNeighborPos)
 		if chainMatches.size() < 3:
 			continue
@@ -323,8 +320,6 @@ func checkMoves():
 			iterationDataCurrent.append(0)
 			iterationCount *= chainRotationSteps
 			chainOriginalRotations.append(chainMatch["rotation"])
-		#print("-----")
-		#print(iterationData)
 		for j in range(iterationCount):
 			for k in range(iterationData.size() - 1):
 				var iterationDataCurrentMax = iterationData[k]
@@ -334,6 +329,8 @@ func checkMoves():
 			for k in range(chainMatches.size()):
 				var chainMatchPos = chainMatches[k]
 				var chainMatch = getChain(chainMatchPos)
+				if chainMatch["color"] == -1:
+					continue
 				chainMatch["rotation"] = iterationDataCurrent[k]
 			var chainConnectionsCount = getChainConnectionsCount(boardPos)
 			if chainConnectionsCount >= 2:
@@ -342,7 +339,6 @@ func checkMoves():
 					var chainMatch = getChain(chainMatchPos)
 					chainMatch["rotation"] = chainOriginalRotations[k]
 				return true
-			#print(iterationDataCurrent)
 			iterationDataCurrent[0] += 1
 		for j in range(chainMatches.size()):
 			var chainMatchPos = chainMatches[j]
@@ -410,12 +406,15 @@ func calculateChainAnimation():
 			while chain["rotationStepTime"] >= 0.05:
 				chain["rotationStepTime"] -= 0.05
 				chain["rotationStep"] += 1
+				if chain["rotationStep"] == 1:
+					calculateVisibleChainConnection(boardPos, true) # Detaching the chain from its connected neighbors
 			if chain["rotationStep"] >= 4:
 				chain["rotationStepTime"] = 0
 				chain["rotationStep"] = 0
 				chain["rotation"] = (chain["rotation"] + 1) % chainShapes[chain["shape"]]["steps"]
 				chain["rotationActive"] = false
 				detectChainMatches()
+				calculateVisibleChainConnection(boardPos, true)
 		if chain["fallOffset"] > 0:
 			chain["fallSpeed"] += dt * 20
 			chain["fallOffset"] -= chain["fallSpeed"] * dt
@@ -423,6 +422,7 @@ func calculateChainAnimation():
 				chain["fallSpeed"] = 0
 				chain["fallOffset"] = 0
 				fallingChainsCount -= 1
+				calculateVisibleChainConnection(boardPos, true)
 		if chain["shuffleActive"]:
 			chain["shuffleTime"] += dt
 			if chain["shuffleTime"] >= 1:
@@ -430,14 +430,8 @@ func calculateChainAnimation():
 				chain["shufflePosition"] = Vector2(0, 0)
 				chain["shuffleActive"] = false
 				shufflingChainsCount -= 1
-		#if chain["deletionActive"]:
-			#chain["deletionStepTime"] += dt
-			#while chain["deletionStepTime"] >= 0.05:
-			#	chain["deletionStepTime"] -= 0.05
-			#	chain["deletionStep"] += 1
-			#	chain["deletionStepOffset"] = Vector2(random(ceil(chain["deletionStep"] / -1), ceil(chain["deletionStep"] / 1)) * 1, random(ceil(chain["deletionStep"] / -1), ceil(chain["deletionStep"] / 1)) * 1)
-			#if chain["deletionStep"] >= 20:
-			#boardTiles[boardPos].erase("chain")
+				if shufflingChainsCount == 0:
+					calculateVisibleChainConnections()
 	for i in range(droppedChains.size()):
 		if i >= droppedChains.size():
 			break
@@ -455,31 +449,31 @@ func calculateChainAnimation():
 	elif interactionAllowed:
 		interactionAllowed = false
 
+func calculateVisibleChainConnection(chainPos, includeChainNeighbors = false):
+	var chain = getChain(chainPos)
+	if chain == null:
+		return
+	chain["visibleConnections"] = getChainConnections(chainPos)
+	if includeChainNeighbors:
+		var chainNeighbors = getChainNeighbors(chainPos)
+		for i in range(chainNeighbors.size()):
+			var chainNeighbor = chainNeighbors[i]
+			calculateVisibleChainConnection(chainNeighbor)
+
+func calculateVisibleChainConnections():
+	for i in range(boardTiles.size()):
+		var boardPos = boardTiles.keys()[i]
+		calculateVisibleChainConnection(boardPos)
+
 
 
 # These variables are necessary because dynamic loading doesn't work anymore.
 var tileTexture = load("res://img/tile.png")
 var chainTileSetTexture = load("res://img/chaintileset.png")
 
-var characters = {
-	" ":{"width":1,"pixels":[]},
-	"0":{"width":3,"pixels":[Vector2(0, 1),Vector2(0, 2),Vector2(0, 3),Vector2(1, 0),Vector2(1, 4),Vector2(2, 1),Vector2(2, 2),Vector2(2, 3)]},
-	"1":{"width":2,"pixels":[Vector2(0, 1),Vector2(1, 0),Vector2(1, 1),Vector2(1, 2),Vector2(1, 3),Vector2(1, 4)]},
-	"2":{"width":3,"pixels":[Vector2(0, 0),Vector2(0, 3),Vector2(0, 4),Vector2(1, 0),Vector2(1, 2),Vector2(1, 4),Vector2(2, 1),Vector2(2, 4)]},
-	"3":{"width":3,"pixels":[Vector2(0, 0),Vector2(0, 4),Vector2(1, 0),Vector2(1, 2),Vector2(1, 4),Vector2(2, 1),Vector2(2, 3)]},
-	"4":{"width":3,"pixels":[Vector2(0, 0),Vector2(0, 1),Vector2(0, 2),Vector2(1, 2),Vector2(2, 1),Vector2(2, 2),Vector2(2, 3),Vector2(2, 4)]},
-	"5":{"width":3,"pixels":[Vector2(0, 0),Vector2(0, 1),Vector2(0, 2),Vector2(0, 4),Vector2(1, 0),Vector2(1, 2),Vector2(1, 4),Vector2(2, 0),Vector2(2, 3)]},
-	"6":{"width":3,"pixels":[Vector2(0, 1),Vector2(0, 2),Vector2(0, 3),Vector2(1, 0),Vector2(1, 2),Vector2(1, 4),Vector2(2, 0),Vector2(2, 3)]},
-	"7":{"width":3,"pixels":[Vector2(0, 0),Vector2(1, 0),Vector2(1, 2),Vector2(1, 3),Vector2(1, 4),Vector2(2, 0),Vector2(2, 1)]},
-	"8":{"width":3,"pixels":[Vector2(0, 1),Vector2(0, 3),Vector2(1, 0),Vector2(1, 2),Vector2(1, 4),Vector2(2, 1),Vector2(2, 3)]},
-	"9":{"width":3,"pixels":[Vector2(0, 1),Vector2(0, 4),Vector2(1, 0),Vector2(1, 2),Vector2(1, 4),Vector2(2, 1),Vector2(2, 2),Vector2(2, 3)]},
-	"S":{"width":3,"pixels":[Vector2(0, 1),Vector2(0, 4),Vector2(1, 0),Vector2(1, 2),Vector2(1, 4),Vector2(2, 0),Vector2(2, 3)]},
-	"c":{"width":2,"pixels":[Vector2(0, 3),Vector2(1, 2),Vector2(1, 4)]},
-	"o":{"width":3,"pixels":[Vector2(0, 3),Vector2(1, 2),Vector2(1, 4),Vector2(2, 3)]},
-	"r":{"width":2,"pixels":[Vector2(0, 2),Vector2(0, 3),Vector2(0, 4),Vector2(1, 2)]},
-	"e":{"width":3,"pixels":[Vector2(0, 3),Vector2(1, 2),Vector2(1, 3),Vector2(1, 4),Vector2(2, 2),Vector2(2, 4)]},
-	":":{"width":1,"pixels":[Vector2(0, 2),Vector2(0, 4)]}
-}
+# Of course, this array will be loaded from external file.
+var characterSet = {}
+var characterSetTexture = load("res://font/small.png")
 var characterPixelSize = Vector2(8, 8)
 
 func _draw():
@@ -488,23 +482,16 @@ func _draw():
 	drawDroppedChains()
 	
 	scoreAnimation = round(min(scoreAnimation + (((score - scoreAnimation) + 100) * dt), score))
-	drawText(Vector2(8, 8), "Score: " + str(scoreAnimation), Color(1.0, 1.0, 0.0), {"shadow":true})
-	
-	#for i in range(100):
-	#	var barTime = i / 100.0
-	#	var barHeight = 100 * ((sin((barTime * PI) + (PI / 2)) + 1) / 2)
-	#	var barRect = Rect2(Vector2(1200 + i, 600 - barHeight), Vector2(1, barHeight))
-	#	draw_rect(barRect, Color(0.0, 1.0, 0.0), true)
+	drawText(Vector2(8, 8), "Score: " + str(scoreAnimation) + "\nChains broken: " + str(brokenChains), Color(1.0, 1.0, 0.0), {"shadow":true})
 
 func chainTextureRect(chainData):
 	var chain = chainData
-	var chainConnections = [false, false, false, false]
 	if typeof(chainData) == TYPE_VECTOR2:
 		chain = getChain(chainData)
-		chainConnections = getChainConnections(chainData)
 	var chainSpriteSize = Vector2(16, 16)
 	var chainSpritePos = Vector2(0, 0)
 	if chain["rotationStep"] == 0:
+		var chainConnections = chain["visibleConnections"]
 		for i in range(chainConnections.size()):
 			var chainConnection = chainConnections[i]
 			if chainConnection:
@@ -556,7 +543,7 @@ func drawDroppedChains():
 	for i in range(droppedChains.size()):
 		var droppedChain = droppedChains[i]
 		var droppedChainPos = droppedChain["position"]
-		var droppedChainTextureRect = chainTextureRect({"shape":droppedChain["shape"],"rotation":droppedChain["rotation"],"rotationStep":0})
+		var droppedChainTextureRect = chainTextureRect({"shape":droppedChain["shape"],"rotation":droppedChain["rotation"],"rotationStep":0,"visibleConnections":[false, false, false, false]})
 		var droppedChainColor = chainColors[droppedChain["color"]]
 		var droppedChainRect = globalTileRect(droppedChainPos)
 		var droppedChainRectShadow = droppedChainRect
@@ -564,17 +551,29 @@ func drawDroppedChains():
 		draw_texture_rect_region(chainTileSetTexture, droppedChainRectShadow, droppedChainTextureRect, Color(0.0, 0.0, 0.0, 0.5))
 		draw_texture_rect_region(chainTileSetTexture, droppedChainRect, droppedChainTextureRect, droppedChainColor)
 
+func prepareCharacterSet():
+	var characterSetFile = File.new()
+	characterSetFile.open("res://font/small.txt", characterSetFile.READ)
+	var characterSetOffset = 0
+	while !characterSetFile.eof_reached():
+		var character = characterSetFile.get_line()
+		var characterWidth = int(characterSetFile.get_line())
+		characterSet[character] = {"offset":characterSetOffset,"width":characterWidth}
+		characterSetOffset += characterWidth
+	characterSetFile.close()
+
+func characterTextureRect(character):
+	if characterSet.has(character):
+		var characterData = characterSet[character]
+		return Rect2(Vector2(characterData["offset"], 0), Vector2(characterData["width"], characterSetTexture.get_size()[1]))
+
 func drawCharacter(characterPos, character, characterColor = Color(1.0, 1.0, 1.0), characterFlags = {}):
 	if characterFlags.has("shadow") && characterFlags["shadow"]:
 		characterFlags.erase("shadow")
 		drawCharacter(characterPos + characterPixelSize, character, Color(0.0, 0.0, 0.0, 0.5), characterFlags)
-	var characterData = characters[character]
-	var characterPixels = characterData["pixels"]
-	for i in range(characterPixels.size()):
-		var characterPixel = characterPixels[i]
-		var characterPixelPos = characterPos + (characterPixel * characterPixelSize)
-		var characterPixelRect = Rect2(characterPixelPos, characterPixelSize)
-		draw_rect(characterPixelRect, characterColor, true)
+	var characterTextureRect = characterTextureRect(character)
+	var characterRect = Rect2(characterPos, characterTextureRect.size * characterPixelSize)
+	draw_texture_rect_region(characterSetTexture, characterRect, characterTextureRect, characterColor)
 
 func drawText(textPos, text, textColor = Color(1.0, 1.0, 1.0), textFlags = {}):
 	var characterOffset = Vector2(0, 0)
@@ -582,7 +581,7 @@ func drawText(textPos, text, textColor = Color(1.0, 1.0, 1.0), textFlags = {}):
 		var character = text[i]
 		if character == "\n":
 			characterOffset[0] = 0
-			characterOffset[1] += 8
+			characterOffset[1] += 8 * characterPixelSize[1]
 		else:
 			drawCharacter(textPos + characterOffset, character, textColor, textFlags.duplicate())
-			characterOffset[0] += (characters[character]["width"] + 1) * characterPixelSize[0]
+			characterOffset[0] += (characterSet[character]["width"] + 1) * characterPixelSize[0]
