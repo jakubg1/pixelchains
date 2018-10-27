@@ -416,6 +416,8 @@ func calculateChainAnimation():
 				detectChainMatches()
 				calculateVisibleChainConnection(boardPos, true)
 		if chain["fallOffset"] > 0:
+			if chain["fallSpeed"] == 0:
+				calculateVisibleChainConnection(boardPos, true)
 			chain["fallSpeed"] += dt * 20
 			chain["fallOffset"] -= chain["fallSpeed"] * dt
 			if chain["fallOffset"] <= 0:
