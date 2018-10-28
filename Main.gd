@@ -66,6 +66,7 @@ var boardSize = Vector2(9, 9)
 
 var boardTiles = {}
 var droppedChains = []
+var scoreTexts = []
 var chainColors = {
 	-2:Color(1.0, 1.0, 1.0),
 	-1:Color(0.0, 0.0, 0.0),
@@ -257,10 +258,15 @@ func detectChainMatches():
 	var chainMatches = getChainMatches()
 	for i in range(chainMatches.size()):
 		var chainMatch = chainMatches[i]
+		var chainMatchPos = Vector2(0, 0)
 		for j in range(chainMatch.size()):
 			var chainPos = chainMatch[j]
 			removeChain(chainPos)
-		score += ((chainMatch.size() - 2) * 100) * combo
+			chainMatchPos += chainPos
+		chainMatchPos /= chainMatch.size()
+		var addedScore = ((chainMatch.size() - 2) * 100) * combo
+		scoreTexts.append({"score":addedScore,"combo":combo,"position":chainMatchPos,"time":0})
+		score += addedScore
 		combo += 1
 		brokenChains += chainMatch.size()
 	if !chainMatches.empty():
@@ -448,6 +454,14 @@ func calculateChainAnimation():
 		if droppedChain["position"][1] >= tileSize[1]:
 			droppedChains.remove(i)
 			i -= 1
+	for i in range(scoreTexts.size()):
+		if i >= scoreTexts.size():
+			break
+		var scoreText = scoreTexts[i]
+		scoreText["time"] += dt
+		if scoreText["time"] >= 2:
+			scoreTexts.remove(i)
+			i -= 1
 	if fallingChainsCount == 0 && shufflingChainsCount == 0:
 		if !interactionAllowed:
 			interactionAllowed = true
@@ -478,17 +492,28 @@ var tileTexture = load("res://img/tile.png")
 var chainTileSetTexture = load("res://img/chaintileset.png")
 
 # Of course, this array will be loaded from external file.
-var characterSet = {}
-var characterSetTexture = load("res://font/small.png")
-var characterPixelSize = Vector2(8, 8)
+var fonts = {
+	"small":{
+		"texture":load("res://font/small.png"),
+		"characters":{},
+		"heightOffset":0
+	},
+	"normal":{
+		"texture":load("res://font/normal.png"),
+		"characters":{},
+		"heightOffset":0
+	}
+}
+var characterPixelSize = Vector2(4, 4)
 
 func _draw():
 	drawBoardTiles()
 	drawBoardChains()
 	drawDroppedChains()
+	drawScoreTexts()
 	
 	scoreAnimation = round(min(scoreAnimation + (((score - scoreAnimation) + 100) * dt), score))
-	drawText(Vector2(8, 8), "Score: " + str(scoreAnimation) + "\nChains broken: " + str(brokenChains), Color(1.0, 1.0, 0.0), {"shadow":true})
+	drawText(Vector2(8, 8), "Score: " + str(scoreAnimation) + "\nChains broken: " + str(brokenChains), "normal", Color(1.0, 1.0, 0.0), {"shadow":true})
 
 func chainTextureRect(chainData):
 	var chain = chainData
@@ -557,37 +582,86 @@ func drawDroppedChains():
 		draw_texture_rect_region(chainTileSetTexture, droppedChainRectShadow, droppedChainTextureRect, Color(0.0, 0.0, 0.0, 0.5))
 		draw_texture_rect_region(chainTileSetTexture, droppedChainRect, droppedChainTextureRect, droppedChainColor)
 
+func drawScoreTexts():
+	for i in range(scoreTexts.size()):
+		var scoreText = scoreTexts[i]
+		var scoreTextPos = globalTilePos(scoreText["position"] + Vector2(0.5, 0.5))
+		scoreTextPos[1] -= scoreText["time"] * 50
+		var scoreTextText = str(scoreText["score"])
+		if scoreText["combo"] > 1:
+			scoreTextText += "\n" + str(scoreText["combo"]) + "x combo!"
+		drawText(scoreTextPos, scoreTextText, "normal", Color(1.0, 1.0, 1.0, min((2 - scoreText["time"]) * 2, 1)), {"shadow":true,"halign":0,"valign":1})
+
 func prepareCharacterSet():
-	var characterSetFile = File.new()
-	characterSetFile.open("res://font/small.txt", characterSetFile.READ)
-	var characterSetOffset = 0
-	while !characterSetFile.eof_reached():
-		var character = characterSetFile.get_line()
-		var characterWidth = int(characterSetFile.get_line())
-		characterSet[character] = {"offset":characterSetOffset,"width":characterWidth}
-		characterSetOffset += characterWidth
-	characterSetFile.close()
+	for i in range(fonts.size()):
+		var fontName = fonts.keys()[i]
+		var font = fonts[fontName]
+		var fontFile = File.new()
+		fontFile.open("res://font/" + fontName + ".txt", fontFile.READ)
+		var characterOffset = 0
+		font["heightOffset"] = int(fontFile.get_line())
+		while !fontFile.eof_reached():
+			var character = fontFile.get_line()
+			var characterWidth = int(fontFile.get_line())
+			font["characters"][character] = {"offset":characterOffset,"width":characterWidth}
+			characterOffset += characterWidth
+		fontFile.close()
 
-func characterTextureRect(character):
-	if characterSet.has(character):
-		var characterData = characterSet[character]
-		return Rect2(Vector2(characterData["offset"], 0), Vector2(characterData["width"], characterSetTexture.get_size()[1]))
+func characterTextureRect(character, characterFont):
+	var font = fonts[characterFont]
+	var fontCharacters = font["characters"]
+	var fontTexture = font["texture"]
+	if fontCharacters.has(character):
+		var characterData = fontCharacters[character]
+		return Rect2(Vector2(characterData["offset"], 0), Vector2(characterData["width"], fontTexture.get_size()[1]))
 
-func drawCharacter(characterPos, character, characterColor = Color(1.0, 1.0, 1.0), characterFlags = {}):
+func drawCharacter(characterPos, character, characterFont, characterColor = Color(1.0, 1.0, 1.0), characterFlags = {}):
 	if characterFlags.has("shadow") && characterFlags["shadow"]:
 		characterFlags.erase("shadow")
-		drawCharacter(characterPos + characterPixelSize, character, Color(0.0, 0.0, 0.0, 0.5), characterFlags)
-	var characterTextureRect = characterTextureRect(character)
+		drawCharacter(characterPos + characterPixelSize, character, characterFont, Color(0.0, 0.0, 0.0, 0.5 * characterColor[3]), characterFlags)
+	var font = fonts[characterFont]
+	var fontTexture = font["texture"]
+	var fontHeightOffset = font["heightOffset"]
+	var characterTextureRect = characterTextureRect(character, characterFont)
 	var characterRect = Rect2(characterPos, characterTextureRect.size * characterPixelSize)
-	draw_texture_rect_region(characterSetTexture, characterRect, characterTextureRect, characterColor)
+	characterRect.position[1] -= fontHeightOffset
+	draw_texture_rect_region(fontTexture, characterRect, characterTextureRect, characterColor)
 
-func drawText(textPos, text, textColor = Color(1.0, 1.0, 1.0), textFlags = {}):
-	var characterOffset = Vector2(0, 0)
+func drawTextLine(textPos, text, textFont, textColor = Color(1.0, 1.0, 1.0), textFlags = {}):
+	var font = fonts[textFont]
+	var fontCharacters = font["characters"]
+	var fontTexture = font["texture"]
+	if textFlags.has("halign") && textFlags["halign"] != -1:
+		var lineLength = 0
+		for i in range(len(text)):
+			var character = text[i]
+			var characterData = fontCharacters[character]
+			lineLength += characterData["width"] + 1
+		lineLength -= 1
+		lineLength *= characterPixelSize[0]
+		textPos[0] -= lineLength * ((textFlags["halign"] + 1) / 2.0)
+		textFlags.erase("halign")
+		drawTextLine(textPos, text, textFont, textColor, textFlags)
+		return
+	var characterOffset = 0
 	for i in range(len(text)):
 		var character = text[i]
-		if character == "\n":
-			characterOffset[0] = 0
-			characterOffset[1] += 8 * characterPixelSize[1]
-		else:
-			drawCharacter(textPos + characterOffset, character, textColor, textFlags.duplicate())
-			characterOffset[0] += (characterSet[character]["width"] + 1) * characterPixelSize[0]
+		var characterPos = textPos + Vector2(characterOffset, 0)
+		var characterData = fontCharacters[character]
+		drawCharacter(characterPos, character, textFont, textColor, textFlags.duplicate())
+		characterOffset += (characterData["width"] + 1) * characterPixelSize[0]
+
+func drawText(textPos, text, textFont, textColor = Color(1.0, 1.0, 1.0), textFlags = {}):
+	var font = fonts[textFont]
+	var fontTexture = font["texture"]
+	var lineHeight = fontTexture.get_size()[1] * characterPixelSize[1]
+	var textLines = text.split("\n")
+	if textFlags.has("valign") && textFlags["valign"] != -1:
+		textPos[1] -= (lineHeight * textLines.size()) * ((textFlags["valign"] + 1) / 2.0)
+		textFlags.erase("valign")
+		drawText(textPos, text, textFont, textColor, textFlags)
+		return
+	for i in range(textLines.size()):
+		var textLine = textLines[i]
+		var textLinePos = textPos + Vector2(0, lineHeight * i)
+		drawTextLine(textLinePos, textLine, textFont, textColor, textFlags.duplicate())
