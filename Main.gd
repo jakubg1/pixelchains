@@ -71,7 +71,9 @@ var chainColors = {
 	-1:Color(0.0, 0.0, 0.0),
 	0:Color(1.0, 0.0, 0.0),
 	1:Color(1.0, 1.0, 0.0),
-	2:Color(0.0, 0.0, 1.0)
+	2:Color(0.0, 0.0, 1.0),
+	3:Color(0.0, 1.0, 0.0),
+	4:Color(1.0, 0.5, 0.0)
 }
 var chainShapes = {
 	2:{"pattern":[true, false, true, false],"steps":2},
@@ -112,7 +114,7 @@ func initChains():
 					break
 
 func randomChainData():
-	var chainColor = random(0, 2)
+	var chainColor = random(2, 4)
 	if random(1, 100) == 1:
 		chainColor = -2
 	if random(1, 50) == 1:
@@ -426,6 +428,8 @@ func calculateChainAnimation():
 				fallingChainsCount -= 1
 				calculateVisibleChainConnection(boardPos, true)
 		if chain["shuffleActive"]:
+			if chain["shuffleTime"] == 0:
+				calculateVisibleChainConnection(boardPos, true)
 			chain["shuffleTime"] += dt
 			if chain["shuffleTime"] >= 1:
 				chain["shuffleTime"] = 0
