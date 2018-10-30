@@ -12,6 +12,9 @@ func _ready():
 	prepareCharacterSet()
 	startGame()
 
+func restrictValue(value, minValue, maxValue):
+	return max(min(value, maxValue), minValue)
+
 func rotateArray(array, offset):
 	var newArray = []
 	for i in range(array.size()):
@@ -51,7 +54,7 @@ func _process(delta):
 	mousePos = get_global_mouse_position()
 	windowSize = get_viewport().size
 	
-	calculateChainAnimation()
+	calculateAnimations()
 	
 	update()
 
@@ -59,6 +62,12 @@ var score = 0
 var scoreAnimation = 0
 var brokenChains = 0
 var combo = 1
+var shufflesRemaining = 3
+var gameOverActive = false
+var gameOverDrop = false
+var gameOverDropTime = 0
+var gameOver = false
+var gameOverTime = 0
 
 var posDirections = [Vector2(0, -1), Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0)]
 var tileSize = Vector2(64, 64)
@@ -90,6 +99,16 @@ func startGame():
 	initBoard()
 	calculateVisibleChainConnections()
 
+func endGame():
+	for i in range(boardTiles.size()):
+		var boardPos = boardTiles.keys()[i]
+		var chain = getChain(boardPos)
+		if chain == null:
+			continue
+		removeChain(boardPos)
+	gameOver = true
+	gameOverDrop = true
+
 func initBoard():
 	var excludedTiles = [Vector2(0, 0), Vector2(3, 0), Vector2(4, 0), Vector2(5, 0), Vector2(8, 0), Vector2(0, 4), Vector2(1, 4), Vector2(7, 4), Vector2(8, 4), Vector2(0, 8), Vector2(3, 8), Vector2(4, 8), Vector2(5, 8), Vector2(8, 8), ]
 	for i in range(boardSize[0]):
@@ -99,8 +118,8 @@ func initBoard():
 			#if j < 3 || j > 5:
 			#if i <= j:
 			#if random(1, 8) > 1:
-			#if (i >= 3 && i <= 5) || (j >= 3 && j <= 5):
-			boardTiles[boardPos] = {"chain":null}
+			if (i >= 3 && i <= 5) || (j >= 3 && j <= 5):
+				boardTiles[boardPos] = {"chain":null}
 	initChains()
 
 func initChains():
@@ -138,7 +157,9 @@ func randomChainData():
 		"fallSpeed":0,
 		"shuffleTime":0,
 		"shufllePosition":Vector2(0, 0),
-		"shuffleActive":false
+		"shuffleActive":false,
+		"gameOverTime":0,
+		"gameOverOffset":Vector2(0, 0)
 	}
 	return chainData
 
@@ -274,7 +295,12 @@ func detectChainMatches():
 		fillHolesUp()
 		interactionAllowed = false
 	elif !checkMoves():
-		shuffleChains()
+		if shufflesRemaining == 0:
+			gameOverActive = true
+			interactionAllowed = false
+		else:
+			shuffleChains()
+			shufflesRemaining -= 1
 
 func fillHoles():
 	for i in range(boardSize[0]):
@@ -403,7 +429,8 @@ func shuffleChains():
 		boardTiles[chainPos]["chain"] = newChain
 	combo = 1
 
-func calculateChainAnimation():
+func calculateAnimations():
+	# Chain animating
 	for i in range(boardTiles.size()):
 		var boardPos = boardTiles.keys()[i]
 		var chain = getChain(boardPos)
@@ -435,7 +462,7 @@ func calculateChainAnimation():
 				calculateVisibleChainConnection(boardPos, true)
 		if chain["shuffleActive"]:
 			if chain["shuffleTime"] == 0:
-				calculateVisibleChainConnection(boardPos, true)
+				calculateVisibleChainConnection(boardPos)
 			chain["shuffleTime"] += dt
 			if chain["shuffleTime"] >= 1:
 				chain["shuffleTime"] = 0
@@ -444,6 +471,11 @@ func calculateChainAnimation():
 				shufflingChainsCount -= 1
 				if shufflingChainsCount == 0:
 					calculateVisibleChainConnections()
+		if gameOverActive:
+			chain["gameOverTime"] += dt
+			while chain["gameOverTime"] >= 0.02:
+				chain["gameOverTime"] -= 0.02
+				chain["gameOverOffset"] = Vector2(random(-2, 2) * 4, random(-2, 2) * 4)
 	for i in range(droppedChains.size()):
 		if i >= droppedChains.size():
 			break
@@ -454,6 +486,7 @@ func calculateChainAnimation():
 		if droppedChain["position"][1] >= tileSize[1]:
 			droppedChains.remove(i)
 			i -= 1
+	# Score texts
 	for i in range(scoreTexts.size()):
 		if i >= scoreTexts.size():
 			break
@@ -462,12 +495,25 @@ func calculateChainAnimation():
 		if scoreText["time"] >= 2:
 			scoreTexts.remove(i)
 			i -= 1
-	if fallingChainsCount == 0 && shufflingChainsCount == 0:
+	# User interaction
+	if (fallingChainsCount == 0 && shufflingChainsCount == 0) && (!gameOver && !gameOverActive):
 		if !interactionAllowed:
 			interactionAllowed = true
 			detectChainMatches()
 	elif interactionAllowed:
 		interactionAllowed = false
+	# Game over
+	if gameOverActive && !gameOver:
+		gameOverDropTime += dt
+		if gameOverDropTime >= 2:
+			gameOverDropTime = 0
+			gameOverActive = false
+			endGame()
+	if gameOverDrop && droppedChains.empty():
+		print("Game over!")
+		gameOverDrop = false
+	if gameOver && !gameOverDrop:
+		gameOverTime += dt
 
 func calculateVisibleChainConnection(chainPos, includeChainNeighbors = false):
 	var chain = getChain(chainPos)
@@ -513,7 +559,12 @@ func _draw():
 	drawScoreTexts()
 	
 	scoreAnimation = round(min(scoreAnimation + (((score - scoreAnimation) + 100) * dt), score))
-	drawText(Vector2(8, 8), "Score: " + str(scoreAnimation) + "\nChains broken: " + str(brokenChains), "normal", Color(1.0, 1.0, 0.0), {"shadow":true})
+	drawText(Vector2(8, 8), "Score: " + str(scoreAnimation) + "\nChains broken: " + str(brokenChains) + "\nShuffles remaining: " + str(shufflesRemaining), "normal", Color(1.0, 1.0, 0.0), {"shadow":true})
+	#drawText(Vector2(500, 8), "O:" + str(gameOver) + "\nT:" + str(gameOverTime) + "\nA:" + str(gameOverActive) + "\nD:" + str(gameOverDrop) + "\nT:" + str(gameOverDropTime), "normal", Color(1.0, 1.0, 1.0), {"shadow":true,"halign":0})
+	
+	if gameOverTime > 0:
+		draw_rect(Rect2(Vector2(0, 0), windowSize), Color(0.0, 0.0, 0.0, restrictValue(gameOverTime / 4, 0.0, 0.5)), true)
+		drawText(windowSize / 2, "No more moves left!", "normal", Color(1.0, 0.0, 0.0, restrictValue((gameOverTime - 1) / 3, 0.0, 1.0)), {"shadow":true,"halign":0,"valign":0})
 
 func chainTextureRect(chainData):
 	var chain = chainData
@@ -560,7 +611,7 @@ func drawBoardChains():
 		if chain != null:
 			var chainTextureRect = chainTextureRect(chainPos)
 			var chainColor = chainColors[chain["color"]]
-			var chainOffset = Vector2(0, chain["fallOffset"] * -tileSize[1])
+			var chainOffset = Vector2(0, chain["fallOffset"] * -tileSize[1]) + chain["gameOverOffset"]
 			if chain["shuffleActive"]:
 				chainOffset += ((chain["shufflePosition"] - chainPos) * ((sin((chain["shuffleTime"] * PI) + (PI / 2)) + 1) / 2)) * tileSize
 			var chainRect = globalTileRect(chainPos)
