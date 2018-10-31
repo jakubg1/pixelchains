@@ -90,6 +90,7 @@ var chainShapes = {
 	3:{"pattern":[true, true, true, false],"steps":4},
 	4:{"pattern":[true, true, true, true],"steps":1}
 }
+var chainPowers = ["2x", "3x", "5x", "+"]
 
 var fallingChainsCount = 0
 var shufflingChainsCount = 0
@@ -135,16 +136,25 @@ func initChains():
 
 func randomChainData():
 	var chainColor = random(2, 4)
-	if random(1, 100) == 1:
-		chainColor = -2
-	if random(1, 50) == 1:
-		chainColor = -1
+	#if random(1, 100) == 1:
+	#	chainColor = -2
+	#if random(1, 50) == 1:
+	#	chainColor = -1
 	var chainShape = 2
-	if random(1, 5) == 1:
-		chainShape = 3
-	if random(1, 20) == 1:
+	#if random(1, 3) == 1:
+	#	chainShape = 3
+	if random(1, 8) == 1:
 		chainShape = 4
 	var chainRotation = random(0, chainShapes[chainShape]["steps"] - 1)
+	var chainPower = null
+	if random(1, 100) == 1:
+		chainPower = "+"
+	if random(1, 100) == 1:
+		chainPower = "5x"
+	if random(1, 50) == 1:
+		chainPower = "3x"
+	if random(1, 20) == 1:
+		chainPower = "2x"
 	var chainData = {
 		"color":chainColor,
 		"shape":chainShape,
@@ -159,7 +169,8 @@ func randomChainData():
 		"shufllePosition":Vector2(0, 0),
 		"shuffleActive":false,
 		"gameOverTime":0,
-		"gameOverOffset":Vector2(0, 0)
+		"gameOverOffset":Vector2(0, 0),
+		"power":chainPower
 	}
 	return chainData
 
@@ -280,13 +291,25 @@ func detectChainMatches():
 	for i in range(chainMatches.size()):
 		var chainMatch = chainMatches[i]
 		var chainMatchPos = Vector2(0, 0)
+		var chainMatchScoreMultiplier = 1
+		var chainMatchExtraShuffle = false
 		for j in range(chainMatch.size()):
 			var chainPos = chainMatch[j]
+			var chain = getChain(chainPos)
+			if chain["power"] == "2x":
+				chainMatchScoreMultiplier *= 2
+			if chain["power"] == "3x":
+				chainMatchScoreMultiplier *= 3
+			if chain["power"] == "5x":
+				chainMatchScoreMultiplier *= 5
+			if chain["power"] == "+":
+				chainMatchExtraShuffle = true
+				shufflesRemaining += 1
 			removeChain(chainPos)
 			chainMatchPos += chainPos
 		chainMatchPos /= chainMatch.size()
-		var addedScore = ((chainMatch.size() - 2) * 100) * combo
-		scoreTexts.append({"score":addedScore,"combo":combo,"position":chainMatchPos,"time":0})
+		var addedScore = (((chainMatch.size() - 2) * 100) * combo) * chainMatchScoreMultiplier
+		scoreTexts.append({"score":addedScore,"combo":combo,"multiplier":chainMatchScoreMultiplier,"extraShuffle":chainMatchExtraShuffle,"position":chainMatchPos,"time":0})
 		score += addedScore
 		combo += 1
 		brokenChains += chainMatch.size()
@@ -395,10 +418,10 @@ func removeChain(chainPos):
 	var chain = getChain(chainPos)
 	boardTiles[chainPos].erase("chain")
 	var chainDropped = chain.duplicate()
-	chainDropped.erase("rotationStep")
-	chainDropped.erase("rotationStepTime")
-	chainDropped.erase("rotationActive")
-	chainDropped.erase("fallOffset")
+	chainDropped["rotationStep"] = 0
+	chainDropped["rotationStepTime"] = 0
+	chainDropped["rotationActive"] = false
+	chainDropped["visibleConnections"] = [false, false, false, false]
 	chainDropped["position"] = chainPos
 	chainDropped["velocity"] = Vector2(random(-25, 25) / 10.0, random(-75, -50) / 10.0)
 	chainDropped["time"] = 0
@@ -536,6 +559,7 @@ func calculateVisibleChainConnections():
 # These variables are necessary because dynamic loading doesn't work anymore.
 var tileTexture = load("res://img/tile.png")
 var chainTileSetTexture = load("res://img/chaintileset.png")
+var chainPowerTileSetTexture = load("res://img/powertileset.png")
 
 # Of course, this array will be loaded from external file.
 var fonts = {
@@ -583,6 +607,11 @@ func chainTextureRect(chainData):
 	chainSpritePos[1] = (4 * (chain["shape"] - 1)) + chain["rotation"]
 	return Rect2(chainSpritePos * chainSpriteSize, chainSpriteSize)
 
+func chainPowerTextureRect(chainPower):
+	var chainPowerSpriteSize = Vector2(8, 8)
+	var chainPowerSpritePos = Vector2(chainPowers.find(chainPower), 0)
+	return Rect2(chainPowerSpritePos * chainPowerSpriteSize, chainPowerSpriteSize)
+
 func globalTilePos(boardPos):
 	return (boardPos * tileSize) + ((windowSize - (boardSize * tileSize)) / 2)
 
@@ -608,30 +637,38 @@ func drawBoardChains():
 	for i in range(boardTiles.size()):
 		var chainPos = boardTiles.keys()[i]
 		var chain = getChain(chainPos)
-		if chain != null:
-			var chainTextureRect = chainTextureRect(chainPos)
-			var chainColor = chainColors[chain["color"]]
-			var chainOffset = Vector2(0, chain["fallOffset"] * -tileSize[1]) + chain["gameOverOffset"]
-			if chain["shuffleActive"]:
-				chainOffset += ((chain["shufflePosition"] - chainPos) * ((sin((chain["shuffleTime"] * PI) + (PI / 2)) + 1) / 2)) * tileSize
-			var chainRect = globalTileRect(chainPos)
-			var chainRectShadow = chainRect
-			chainRect.position += chainOffset
-			chainRectShadow.position += chainOffset + Vector2(4, 4)
-			draw_texture_rect_region(chainTileSetTexture, chainRectShadow, chainTextureRect, Color(0.0, 0.0, 0.0, 0.5))
-			draw_texture_rect_region(chainTileSetTexture, chainRect, chainTextureRect, chainColor)
+		drawChain(chainPos, chain)
 
 func drawDroppedChains():
 	for i in range(droppedChains.size()):
 		var droppedChain = droppedChains[i]
 		var droppedChainPos = droppedChain["position"]
-		var droppedChainTextureRect = chainTextureRect({"shape":droppedChain["shape"],"rotation":droppedChain["rotation"],"rotationStep":0,"visibleConnections":[false, false, false, false]})
-		var droppedChainColor = chainColors[droppedChain["color"]]
-		var droppedChainRect = globalTileRect(droppedChainPos)
-		var droppedChainRectShadow = droppedChainRect
-		droppedChainRectShadow.position += Vector2(4, 4)
-		draw_texture_rect_region(chainTileSetTexture, droppedChainRectShadow, droppedChainTextureRect, Color(0.0, 0.0, 0.0, 0.5))
-		draw_texture_rect_region(chainTileSetTexture, droppedChainRect, droppedChainTextureRect, droppedChainColor)
+		drawChain(droppedChainPos, droppedChain)
+
+func drawChain(boardPos, chain):
+	if chain == null:
+		return
+	var chainTextureRect = chainTextureRect(chain)
+	var chainColor = chainColors[chain["color"]]
+	var chainOffset = Vector2(0, chain["fallOffset"] * -tileSize[1]) + chain["gameOverOffset"]
+	if chain["shuffleActive"]:
+		chainOffset += ((chain["shufflePosition"] - boardPos) * ((sin((chain["shuffleTime"] * PI) + (PI / 2)) + 1) / 2)) * tileSize
+	var chainRect = globalTileRect(boardPos)
+	var chainRectShadow = chainRect
+	chainRect.position += chainOffset
+	chainRectShadow.position += chainOffset + Vector2(4, 4)
+	draw_texture_rect_region(chainTileSetTexture, chainRectShadow, chainTextureRect, Color(0.0, 0.0, 0.0, 0.5))
+	draw_texture_rect_region(chainTileSetTexture, chainRect, chainTextureRect, chainColor)
+	if chain["power"] != null:
+		var chainPowerTextureRect = chainPowerTextureRect(chain["power"])
+		var chainPowerRect = chainRect
+		var chainPowerRectShadow = chainRectShadow
+		chainPowerRect.position += Vector2(16, 16)
+		chainPowerRectShadow.position += Vector2(16, 16)
+		chainPowerRect.size /= 2
+		chainPowerRectShadow.size /= 2
+		draw_texture_rect_region(chainPowerTileSetTexture, chainPowerRectShadow, chainPowerTextureRect, Color(0.0, 0.0, 0.0, 0.5))
+		draw_texture_rect_region(chainPowerTileSetTexture, chainPowerRect, chainPowerTextureRect, Color(1.0, 1.0, 1.0))
 
 func drawScoreTexts():
 	for i in range(scoreTexts.size()):
@@ -641,6 +678,10 @@ func drawScoreTexts():
 		var scoreTextText = str(scoreText["score"])
 		if scoreText["combo"] > 1:
 			scoreTextText += "\n" + str(scoreText["combo"]) + "x combo!"
+		if scoreText["multiplier"] > 1:
+			scoreTextText += "\n" + str(scoreText["multiplier"]) + "x multiplier!"
+		if scoreText["extraShuffle"]:
+			scoreTextText += "\n+1 extra shuffle!"
 		drawText(scoreTextPos, scoreTextText, "normal", Color(1.0, 1.0, 1.0, min((2 - scoreText["time"]) * 2, 1)), {"shadow":true,"halign":0,"valign":1})
 
 func prepareCharacterSet():
