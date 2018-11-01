@@ -292,7 +292,7 @@ func detectChainMatches():
 		var chainMatch = chainMatches[i]
 		var chainMatchPos = Vector2(0, 0)
 		var chainMatchScoreMultiplier = 1
-		var chainMatchExtraShuffle = false
+		var chainMatchExtraShuffles = 0
 		for j in range(chainMatch.size()):
 			var chainPos = chainMatch[j]
 			var chain = getChain(chainPos)
@@ -303,16 +303,16 @@ func detectChainMatches():
 			if chain["power"] == "5x":
 				chainMatchScoreMultiplier *= 5
 			if chain["power"] == "+":
-				chainMatchExtraShuffle = true
-				shufflesRemaining += 1
+				chainMatchExtraShuffles += 1
 			removeChain(chainPos)
 			chainMatchPos += chainPos
 		chainMatchPos /= chainMatch.size()
 		var addedScore = (((chainMatch.size() - 2) * 100) * combo) * chainMatchScoreMultiplier
-		scoreTexts.append({"score":addedScore,"combo":combo,"multiplier":chainMatchScoreMultiplier,"extraShuffle":chainMatchExtraShuffle,"position":chainMatchPos,"time":0})
+		scoreTexts.append({"score":addedScore,"combo":combo,"multiplier":chainMatchScoreMultiplier,"shuffles":chainMatchExtraShuffles,"position":chainMatchPos,"time":0})
 		score += addedScore
 		combo += 1
 		brokenChains += chainMatch.size()
+		shufflesRemaining += chainMatchExtraShuffles
 	if !chainMatches.empty():
 		fillHoles()
 		fillHolesUp()
@@ -680,8 +680,11 @@ func drawScoreTexts():
 			scoreTextText += "\n" + str(scoreText["combo"]) + "x combo!"
 		if scoreText["multiplier"] > 1:
 			scoreTextText += "\n" + str(scoreText["multiplier"]) + "x multiplier!"
-		if scoreText["extraShuffle"]:
-			scoreTextText += "\n+1 extra shuffle!"
+		if scoreText["shuffles"] > 0:
+			scoreTextText += "\n+" + str(scoreText["shuffles"]) + " extra shuffle"
+			if scoreText["shuffles"] > 1:
+				scoreTextText += "s"
+			scoreTextText += "!"
 		drawText(scoreTextPos, scoreTextText, "normal", Color(1.0, 1.0, 1.0, min((2 - scoreText["time"]) * 2, 1)), {"shadow":true,"halign":0,"valign":1})
 
 func prepareCharacterSet():
