@@ -60,11 +60,16 @@ func _process(delta):
 
 var scene = "game"
 var timeAttack = false
-var levelData = {}
+var levelData = {
+	"target":250,
+	"tiles":[Vector2(0,3),Vector2(0,4),Vector2(0,5),Vector2(1,3),Vector2(1,4),Vector2(1,5),Vector2(2,3),Vector2(2,4),Vector2(2,5),Vector2(3,0),Vector2(3,1),Vector2(3,2),Vector2(3,3),Vector2(3,4),Vector2(3,5),Vector2(3,6),Vector2(3,7),Vector2(3,8),Vector2(4,0),Vector2(4,1),Vector2(4,2),Vector2(4,3),Vector2(4,4),Vector2(4,5),Vector2(4,6),Vector2(4,7),Vector2(4,8),Vector2(5,0),Vector2(5,1),Vector2(5,2),Vector2(5,3),Vector2(5,4),Vector2(5,5),Vector2(5,6),Vector2(5,7),Vector2(5,8),Vector2(6,3),Vector2(6,4),Vector2(6,5),Vector2(7,3),Vector2(7,4),Vector2(7,5),Vector2(8,3),Vector2(8,4),Vector2(8,5)]
+}
 
 var score = 0
 var scoreAnimation = 0
 var brokenChains = 0
+var levelProgress = 0
+var levelProgressAnimation = 0
 var combo = 1
 var shufflesRemaining = 3
 var timeLeft = 60
@@ -96,7 +101,7 @@ var chainShapes = {
 	3:{"pattern":[true, true, true, false],"steps":4},
 	4:{"pattern":[true, true, true, true],"steps":1}
 }
-var chainPowers = ["2x", "3x", "5x", "+"]
+var chainPowers = ["2x", "3x", "5x", "s+", "t+"]
 
 var fallingChainsCount = 0
 var shufflingChainsCount = 0
@@ -105,10 +110,14 @@ var interactionAllowed = true
 var onscreenMessage = {"type":null,"time":0,"active":false}
 var onscreenMessageTypes = {
 	"shuffle":{"text":"Shuffling...","color":Color(1.0, 1.0, 0.0),"maxTime":2},
-	"gameOver":{"text":"No more moves left!","color":Color(1.0, 0.0, 0.0),"maxTime":10}
+	"gameOverMoves":{"text":"No more shuffles left!","color":Color(1.0, 0.0, 0.0),"maxTime":10},
+	"gameOverTime":{"text":"Time's up!","color":Color(1.0, 0.0, 0.0),"maxTime":10}
 }
 
 func startGame():
+	startLevel()
+
+func startLevel():
 	initBoard()
 	calculateVisibleChainConnections()
 
@@ -121,17 +130,10 @@ func endLevel():
 	interactionAllowed = false
 
 func initBoard():
-	var excludedTiles = [Vector2(0, 0), Vector2(3, 0), Vector2(4, 0), Vector2(5, 0), Vector2(8, 0), Vector2(0, 4), Vector2(1, 4), Vector2(7, 4), Vector2(8, 4), Vector2(0, 8), Vector2(3, 8), Vector2(4, 8), Vector2(5, 8), Vector2(8, 8), ]
-	for i in range(boardSize[0]):
-		for j in range(boardSize[1]):
-			var boardPos = Vector2(i, j)
-			#if !excludedTiles.has(boardPos):
-			#if j < 3 || j > 5:
-			#if i <= j:
-			#if random(1, 8) > 1:
-			if (i >= 3 && i <= 5) || (j >= 3 && j <= 5):
-			#if (i + j) % 2 == 0:
-				boardTiles[boardPos] = {"chain":null}
+	var levelTiles = levelData["tiles"]
+	for i in range(levelTiles.size()):
+		var boardPos = levelTiles[i]
+		boardTiles[boardPos] = {"chain":null}
 	initChains()
 
 func initChains():
@@ -159,7 +161,10 @@ func randomChainData():
 	var chainRotation = random(0, chainShapes[chainShape]["steps"] - 1)
 	var chainPower = null
 	if random(1, 100) == 1:
-		chainPower = "+"
+		if timeAttack:
+			chainPower = "t+"
+		else:
+			chainPower = "s+"
 	if random(1, 100) == 1:
 		chainPower = "5x"
 	if random(1, 50) == 1:
@@ -304,6 +309,7 @@ func detectChainMatches():
 		var chainMatchPos = Vector2(0, 0)
 		var chainMatchScoreMultiplier = 1
 		var chainMatchExtraShuffles = 0
+		var chainMatchExtraTime = 0
 		for j in range(chainMatch.size()):
 			var chainPos = chainMatch[j]
 			var chain = getChain(chainPos)
@@ -313,23 +319,27 @@ func detectChainMatches():
 				chainMatchScoreMultiplier *= 3
 			if chain["power"] == "5x":
 				chainMatchScoreMultiplier *= 5
-			if chain["power"] == "+":
+			if chain["power"] == "s+":
 				chainMatchExtraShuffles += 1
+			if chain["power"] == "t+":
+				chainMatchExtraTime += 5
 			removeChain(chainPos)
 			chainMatchPos += chainPos
 		chainMatchPos /= chainMatch.size()
 		var addedScore = (((chainMatch.size() - 2) * 100) * combo) * chainMatchScoreMultiplier
-		scoreTexts.append({"score":addedScore,"combo":combo,"multiplier":chainMatchScoreMultiplier,"shuffles":chainMatchExtraShuffles,"position":chainMatchPos,"time":0})
+		scoreTexts.append({"score":addedScore,"combo":combo,"multiplier":chainMatchScoreMultiplier,"extraShuffles":chainMatchExtraShuffles,"extraTime":chainMatchExtraTime,"position":chainMatchPos,"time":0})
 		score += addedScore
 		combo += 1
 		brokenChains += chainMatch.size()
+		levelProgress = float(brokenChains) / levelData["target"]
 		shufflesRemaining += chainMatchExtraShuffles
+		timeLeft += chainMatchExtraTime
 	if !chainMatches.empty():
 		fillHoles()
 		fillHolesUp()
 		interactionAllowed = false
 	elif !checkMoves():
-		if shufflesRemaining == 0:
+		if !timeAttack && shufflesRemaining == 0:
 			endGame()
 		else:
 			displayOnscreenMessage("shuffle")
@@ -530,7 +540,7 @@ func calculateAnimations():
 			onscreenMessage["active"] = false
 			if onscreenMessage["type"] == "shuffle":
 				shuffleChains()
-			if onscreenMessage["type"] == "gameOver":
+			if onscreenMessage["type"] == "gameOverMoves" || onscreenMessage["type"] == "gameOverTime":
 				endLevel()
 	# Score
 	scoreAnimation = round(min(scoreAnimation + (((score - scoreAnimation) + 100) * dt), score))
@@ -550,6 +560,12 @@ func calculateAnimations():
 			detectChainMatches()
 	elif interactionAllowed:
 		interactionAllowed = false
+	# Time counting
+	if timeAttack && interactionAllowed:
+		timeLeft -= dt
+		if timeLeft <= 0:
+			timeLeft = 0
+			endGame()
 	# Game over
 	if gameOverActive && !gameOver:
 		gameOverTime += dt
@@ -566,7 +582,10 @@ func calculateAnimations():
 			gameOverDrop = true
 	if gameOverDrop && droppedChains.empty():
 		gameOverDrop = false
-		displayOnscreenMessage("gameOver")
+		if timeAttack:
+			displayOnscreenMessage("gameOverTime")
+		else:
+			displayOnscreenMessage("gameOverMoves")
 	# Level end
 	if levelEndActive:
 		levelEndTime += dt
@@ -626,7 +645,12 @@ func _draw():
 		drawDroppedChains()
 		drawScoreTexts()
 		drawOnscreenMessage()
-		drawText(Vector2(8, 8), "Score: " + str(scoreAnimation) + "\nChains broken: " + str(brokenChains) + "\nShuffles remaining: " + str(shufflesRemaining), "normal", Color(1.0, 1.0, 0.0), {"shadow":true})
+		var barText = "Score: " + str(scoreAnimation) + "\nChains broken: " + str(brokenChains) + "\nProgress: " + str(floor(levelProgress * 100)) + "%"
+		if timeAttack:
+			barText += "\nTime left: " + str(ceil(timeLeft * 10) / 10.0) + "s"
+		else:
+			barText += "\nShuffles remaining: " + str(shufflesRemaining)
+		drawText(Vector2(8, 8), barText, "normal", Color(1.0, 1.0, 0.0), {"shadow":true})
 
 func chainTextureRect(chainData):
 	var chain = chainData
@@ -724,11 +748,13 @@ func drawScoreTexts():
 			scoreTextText += "\n" + str(scoreText["combo"]) + "x combo!"
 		if scoreText["multiplier"] > 1:
 			scoreTextText += "\n" + str(scoreText["multiplier"]) + "x multiplier!"
-		if scoreText["shuffles"] > 0:
-			scoreTextText += "\n+" + str(scoreText["shuffles"]) + " extra shuffle"
-			if scoreText["shuffles"] > 1:
+		if scoreText["extraShuffles"] > 0:
+			scoreTextText += "\n+" + str(scoreText["extraShuffles"]) + " extra shuffle"
+			if scoreText["extraShuffles"] > 1:
 				scoreTextText += "s"
 			scoreTextText += "!"
+		if scoreText["extraTime"] > 0:
+			scoreTextText += "\n+" + str(scoreText["extraTime"]) + "s of time!"
 		drawText(scoreTextPos, scoreTextText, "normal", Color(1.0, 1.0, 1.0, min((2 - scoreText["time"]) * 2, 1)), {"shadow":true,"halign":0,"valign":1})
 
 func drawOnscreenMessage():
@@ -741,7 +767,7 @@ func drawOnscreenMessage():
 	if onscreenMessage["type"] == "shuffle":
 		screenAlpha = restrictValue((abs(onscreenMessage["time"] - 1) - 1) * -1, 0.0, 0.5)
 		messageAlpha = restrictValue((abs(onscreenMessage["time"] - 1) - 1) * -2, 0.0, 1.0)
-	if onscreenMessage["type"] == "gameOver":
+	if onscreenMessage["type"] == "gameOverMoves" || onscreenMessage["type"] == "gameOverTime":
 		if onscreenMessage["time"] < 9:
 			screenAlpha = restrictValue(onscreenMessage["time"] / 4, 0.0, 0.5)
 		if onscreenMessage["time"] >= 9:
