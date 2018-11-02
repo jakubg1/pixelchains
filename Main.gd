@@ -58,16 +58,22 @@ func _process(delta):
 	
 	update()
 
+var scene = "game"
+var timeAttack = false
+var levelData = {}
+
 var score = 0
 var scoreAnimation = 0
 var brokenChains = 0
 var combo = 1
 var shufflesRemaining = 3
+var timeLeft = 60
 var gameOverActive = false
 var gameOverDrop = false
-var gameOverDropTime = 0
-var gameOver = false
 var gameOverTime = 0
+var gameOver = false
+var levelEndActive = false
+var levelEndTime = 0
 
 var posDirections = [Vector2(0, -1), Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0)]
 var tileSize = Vector2(64, 64)
@@ -96,19 +102,23 @@ var fallingChainsCount = 0
 var shufflingChainsCount = 0
 var interactionAllowed = true
 
+var onscreenMessage = {"type":null,"time":0,"active":false}
+var onscreenMessageTypes = {
+	"shuffle":{"text":"Shuffling...","color":Color(1.0, 1.0, 0.0),"maxTime":2},
+	"gameOver":{"text":"No more moves left!","color":Color(1.0, 0.0, 0.0),"maxTime":10}
+}
+
 func startGame():
 	initBoard()
 	calculateVisibleChainConnections()
 
 func endGame():
-	for i in range(boardTiles.size()):
-		var boardPos = boardTiles.keys()[i]
-		var chain = getChain(boardPos)
-		if chain == null:
-			continue
-		removeChain(boardPos)
-	gameOver = true
-	gameOverDrop = true
+	gameOverActive = true
+	interactionAllowed = false
+
+func endLevel():
+	levelEndActive = true
+	interactionAllowed = false
 
 func initBoard():
 	var excludedTiles = [Vector2(0, 0), Vector2(3, 0), Vector2(4, 0), Vector2(5, 0), Vector2(8, 0), Vector2(0, 4), Vector2(1, 4), Vector2(7, 4), Vector2(8, 4), Vector2(0, 8), Vector2(3, 8), Vector2(4, 8), Vector2(5, 8), Vector2(8, 8), ]
@@ -120,6 +130,7 @@ func initBoard():
 			#if i <= j:
 			#if random(1, 8) > 1:
 			if (i >= 3 && i <= 5) || (j >= 3 && j <= 5):
+			#if (i + j) % 2 == 0:
 				boardTiles[boardPos] = {"chain":null}
 	initChains()
 
@@ -319,11 +330,9 @@ func detectChainMatches():
 		interactionAllowed = false
 	elif !checkMoves():
 		if shufflesRemaining == 0:
-			gameOverActive = true
-			interactionAllowed = false
+			endGame()
 		else:
-			shuffleChains()
-			shufflesRemaining -= 1
+			displayOnscreenMessage("shuffle")
 
 func fillHoles():
 	for i in range(boardSize[0]):
@@ -428,6 +437,7 @@ func removeChain(chainPos):
 	droppedChains.append(chainDropped)
 
 func shuffleChains():
+	interactionAllowed = false
 	var chainsList = {}
 	for i in range(boardTiles.size()):
 		var boardPos = boardTiles.keys()[i]
@@ -451,6 +461,8 @@ func shuffleChains():
 		var newChain = newChainsList[i]
 		boardTiles[chainPos]["chain"] = newChain
 	combo = 1
+	if !timeAttack:
+		shufflesRemaining -= 1
 
 func calculateAnimations():
 	# Chain animating
@@ -509,6 +521,19 @@ func calculateAnimations():
 		if droppedChain["position"][1] >= tileSize[1]:
 			droppedChains.remove(i)
 			i -= 1
+	# Messages
+	if onscreenMessage["active"]:
+		var onscreenMessageData = onscreenMessageTypes[onscreenMessage["type"]]
+		onscreenMessage["time"] += dt
+		if onscreenMessage["time"] >= onscreenMessageData["maxTime"]:
+			onscreenMessage["time"] = 0
+			onscreenMessage["active"] = false
+			if onscreenMessage["type"] == "shuffle":
+				shuffleChains()
+			if onscreenMessage["type"] == "gameOver":
+				endLevel()
+	# Score
+	scoreAnimation = round(min(scoreAnimation + (((score - scoreAnimation) + 100) * dt), score))
 	# Score texts
 	for i in range(scoreTexts.size()):
 		if i >= scoreTexts.size():
@@ -519,7 +544,7 @@ func calculateAnimations():
 			scoreTexts.remove(i)
 			i -= 1
 	# User interaction
-	if (fallingChainsCount == 0 && shufflingChainsCount == 0) && (!gameOver && !gameOverActive):
+	if (fallingChainsCount == 0 && shufflingChainsCount == 0) && (!onscreenMessage["active"] && (!gameOver && !gameOverActive)):
 		if !interactionAllowed:
 			interactionAllowed = true
 			detectChainMatches()
@@ -527,16 +552,28 @@ func calculateAnimations():
 		interactionAllowed = false
 	# Game over
 	if gameOverActive && !gameOver:
-		gameOverDropTime += dt
-		if gameOverDropTime >= 2:
-			gameOverDropTime = 0
-			gameOverActive = false
-			endGame()
-	if gameOverDrop && droppedChains.empty():
-		print("Game over!")
-		gameOverDrop = false
-	if gameOver && !gameOverDrop:
 		gameOverTime += dt
+		if gameOverTime >= 2:
+			for i in range(boardTiles.size()):
+				var boardPos = boardTiles.keys()[i]
+				var chain = getChain(boardPos)
+				if chain == null:
+					continue
+				removeChain(boardPos)
+			gameOverTime = 0
+			gameOverActive = false
+			gameOver = true
+			gameOverDrop = true
+	if gameOverDrop && droppedChains.empty():
+		gameOverDrop = false
+		displayOnscreenMessage("gameOver")
+	# Level end
+	if levelEndActive:
+		levelEndTime += dt
+		if levelEndTime >= ((boardSize[0] + boardSize[1]) * 0.05) + 1:
+			levelEndTime = 0
+			levelEndActive = false
+			scene = "menu"
 
 func calculateVisibleChainConnection(chainPos, includeChainNeighbors = false):
 	var chain = getChain(chainPos)
@@ -553,6 +590,10 @@ func calculateVisibleChainConnections():
 	for i in range(boardTiles.size()):
 		var boardPos = boardTiles.keys()[i]
 		calculateVisibleChainConnection(boardPos)
+
+func displayOnscreenMessage(type):
+	onscreenMessage = {"type":type,"time":0,"active":true}
+	interactionAllowed = false
 
 
 
@@ -577,18 +618,15 @@ var fonts = {
 var characterPixelSize = Vector2(4, 4)
 
 func _draw():
-	drawBoardTiles()
-	drawBoardChains()
-	drawDroppedChains()
-	drawScoreTexts()
-	
-	scoreAnimation = round(min(scoreAnimation + (((score - scoreAnimation) + 100) * dt), score))
-	drawText(Vector2(8, 8), "Score: " + str(scoreAnimation) + "\nChains broken: " + str(brokenChains) + "\nShuffles remaining: " + str(shufflesRemaining), "normal", Color(1.0, 1.0, 0.0), {"shadow":true})
-	#drawText(Vector2(500, 8), "O:" + str(gameOver) + "\nT:" + str(gameOverTime) + "\nA:" + str(gameOverActive) + "\nD:" + str(gameOverDrop) + "\nT:" + str(gameOverDropTime), "normal", Color(1.0, 1.0, 1.0), {"shadow":true,"halign":0})
-	
-	if gameOverTime > 0:
-		draw_rect(Rect2(Vector2(0, 0), windowSize), Color(0.0, 0.0, 0.0, restrictValue(gameOverTime / 4, 0.0, 0.5)), true)
-		drawText(windowSize / 2, "No more moves left!", "normal", Color(1.0, 0.0, 0.0, restrictValue((gameOverTime - 1) / 3, 0.0, 1.0)), {"shadow":true,"halign":0,"valign":0})
+	if scene == "menu":
+		drawText(windowSize / 2, "Pixelchains\n\nCurrent user: jakubg1   Change\nClassic mode\nTime attack\nLeaderboard\nHelp\nSettings\nExit\n\n\n\nVersion: Alpha 0.0.0\nMenu placeholder; not for use!", "normal", Color(1.0, 1.0, 0.0), {"shadow":true,"halign":0,"valign":0})
+	if scene == "game":
+		drawBoardTiles()
+		drawBoardChains()
+		drawDroppedChains()
+		drawScoreTexts()
+		drawOnscreenMessage()
+		drawText(Vector2(8, 8), "Score: " + str(scoreAnimation) + "\nChains broken: " + str(brokenChains) + "\nShuffles remaining: " + str(shufflesRemaining), "normal", Color(1.0, 1.0, 0.0), {"shadow":true})
 
 func chainTextureRect(chainData):
 	var chain = chainData
@@ -631,7 +669,13 @@ func drawBoardTiles():
 		for j in range(boardSize[1]):
 			var boardPos = Vector2(i, j)
 			if getTile(boardPos) != null:
-				draw_texture_rect(tileTexture, globalTileRect(boardPos), false)
+				var tileRect = globalTileRect(boardPos)
+				var tileRectSize = 1
+				if levelEndActive:
+					tileRectSize = restrictValue(1 - (levelEndTime - ((i + j) * 0.05)), 0.0, 1.0)
+				tileRect.position += (tileSize / 2) * (1 - tileRectSize)
+				tileRect.size *= tileRectSize
+				draw_texture_rect(tileTexture, tileRect, false)
 
 func drawBoardChains():
 	for i in range(boardTiles.size()):
@@ -686,6 +730,26 @@ func drawScoreTexts():
 				scoreTextText += "s"
 			scoreTextText += "!"
 		drawText(scoreTextPos, scoreTextText, "normal", Color(1.0, 1.0, 1.0, min((2 - scoreText["time"]) * 2, 1)), {"shadow":true,"halign":0,"valign":1})
+
+func drawOnscreenMessage():
+	if !onscreenMessage["active"]:
+		return
+	var onscreenMessageData = onscreenMessageTypes[onscreenMessage["type"]]
+	var screenAlpha = 0.5
+	var messageAlpha = 1.0
+	var messageOffset = Vector2(0, 0)
+	if onscreenMessage["type"] == "shuffle":
+		screenAlpha = restrictValue((abs(onscreenMessage["time"] - 1) - 1) * -1, 0.0, 0.5)
+		messageAlpha = restrictValue((abs(onscreenMessage["time"] - 1) - 1) * -2, 0.0, 1.0)
+	if onscreenMessage["type"] == "gameOver":
+		if onscreenMessage["time"] < 9:
+			screenAlpha = restrictValue(onscreenMessage["time"] / 4, 0.0, 0.5)
+		if onscreenMessage["time"] >= 9:
+			screenAlpha = restrictValue(abs(onscreenMessage["time"] - 10) / 2, 0.0, 0.5)
+		messageAlpha = restrictValue((onscreenMessage["time"] - 1) / 3, 0.0, 1.0)
+		messageOffset = Vector2(0, pow(restrictValue(onscreenMessage["time"] - 8, 0, 2), 3) * (windowSize[1] / 2))
+	draw_rect(Rect2(Vector2(0, 0), windowSize), Color(0.0, 0.0, 0.0, screenAlpha), true)
+	drawText((windowSize / 2) + messageOffset, onscreenMessageData["text"], "normal", onscreenMessageData["color"] * Color(1.0, 1.0, 1.0, messageAlpha), {"shadow":true,"halign":0,"valign":0})
 
 func prepareCharacterSet():
 	for i in range(fonts.size()):
