@@ -59,7 +59,7 @@ func _process(delta):
 	update()
 
 var scene = "game"
-var timeAttack = false
+var timeAttack = true
 var levelData = {
 	"target":250,
 	"tiles":[Vector2(0,3),Vector2(0,4),Vector2(0,5),Vector2(1,3),Vector2(1,4),Vector2(1,5),Vector2(2,3),Vector2(2,4),Vector2(2,5),Vector2(3,0),Vector2(3,1),Vector2(3,2),Vector2(3,3),Vector2(3,4),Vector2(3,5),Vector2(3,6),Vector2(3,7),Vector2(3,8),Vector2(4,0),Vector2(4,1),Vector2(4,2),Vector2(4,3),Vector2(4,4),Vector2(4,5),Vector2(4,6),Vector2(4,7),Vector2(4,8),Vector2(5,0),Vector2(5,1),Vector2(5,2),Vector2(5,3),Vector2(5,4),Vector2(5,5),Vector2(5,6),Vector2(5,7),Vector2(5,8),Vector2(6,3),Vector2(6,4),Vector2(6,5),Vector2(7,3),Vector2(7,4),Vector2(7,5),Vector2(8,3),Vector2(8,4),Vector2(8,5)]
@@ -71,7 +71,7 @@ var brokenChains = 0
 var levelProgress = 0
 var levelProgressAnimation = 0
 var combo = 1
-var shufflesRemaining = 3
+var shufflesRemaining = 0
 var timeLeft = 60
 var gameOverActive = false
 var gameOverDrop = false
@@ -103,6 +103,7 @@ var chainShapes = {
 }
 var chainPowers = ["2x", "3x", "5x", "s+", "t+"]
 
+var rotatingChainsCount = 0
 var fallingChainsCount = 0
 var shufflingChainsCount = 0
 var interactionAllowed = true
@@ -431,6 +432,7 @@ func rotateChain(chainPos):
 	if chain["color"] == -1 || chainShapes[chain["shape"]]["steps"] == 1:
 		return
 	chain["rotationActive"] = true
+	rotatingChainsCount += 1
 	combo = 1
 
 func removeChain(chainPos):
@@ -493,7 +495,9 @@ func calculateAnimations():
 				chain["rotationStep"] = 0
 				chain["rotation"] = (chain["rotation"] + 1) % chainShapes[chain["shape"]]["steps"]
 				chain["rotationActive"] = false
-				detectChainMatches()
+				rotatingChainsCount -= 1
+				if rotatingChainsCount == 0:
+					detectChainMatches()
 				calculateVisibleChainConnection(boardPos, true)
 		if chain["fallOffset"] > 0:
 			if chain["fallSpeed"] == 0:
