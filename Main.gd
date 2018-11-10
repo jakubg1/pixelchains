@@ -62,7 +62,105 @@ var scene = "game"
 var timeAttack = true
 var levelData = {
 	"target":250,
-	"tiles":[Vector2(0,3),Vector2(0,4),Vector2(0,5),Vector2(1,3),Vector2(1,4),Vector2(1,5),Vector2(2,3),Vector2(2,4),Vector2(2,5),Vector2(3,0),Vector2(3,1),Vector2(3,2),Vector2(3,3),Vector2(3,4),Vector2(3,5),Vector2(3,6),Vector2(3,7),Vector2(3,8),Vector2(4,0),Vector2(4,1),Vector2(4,2),Vector2(4,3),Vector2(4,4),Vector2(4,5),Vector2(4,6),Vector2(4,7),Vector2(4,8),Vector2(5,0),Vector2(5,1),Vector2(5,2),Vector2(5,3),Vector2(5,4),Vector2(5,5),Vector2(5,6),Vector2(5,7),Vector2(5,8),Vector2(6,3),Vector2(6,4),Vector2(6,5),Vector2(7,3),Vector2(7,4),Vector2(7,5),Vector2(8,3),Vector2(8,4),Vector2(8,5)]
+	"tiles":[
+		Vector2(0,3),Vector2(0,4),Vector2(0,5),
+		Vector2(1,3),Vector2(1,4),Vector2(1,5),
+		Vector2(2,3),Vector2(2,4),Vector2(2,5),
+		Vector2(3,0),Vector2(3,1),Vector2(3,2),Vector2(3,3),Vector2(3,4),Vector2(3,5),Vector2(3,6),Vector2(3,7),Vector2(3,8),
+		Vector2(4,0),Vector2(4,1),Vector2(4,2),Vector2(4,3),Vector2(4,4),Vector2(4,5),Vector2(4,6),Vector2(4,7),Vector2(4,8),
+		Vector2(5,0),Vector2(5,1),Vector2(5,2),Vector2(5,3),Vector2(5,4),Vector2(5,5),Vector2(5,6),Vector2(5,7),Vector2(5,8),
+		Vector2(6,3),Vector2(6,4),Vector2(6,5),
+		Vector2(7,3),Vector2(7,4),Vector2(7,5),
+		Vector2(8,3),Vector2(8,4),Vector2(8,5)
+	],
+#	"tile":[
+#	[
+#		Vector2(0,0),Vector2(0,1),Vector2(0,2),Vector2(0,3),Vector2(0,4),Vector2(0,5),Vector2(0,6),Vector2(0,7),Vector2(0,8),
+#		Vector2(1,0),Vector2(1,1),Vector2(1,2),Vector2(1,3),Vector2(1,4),Vector2(1,5),Vector2(1,6),Vector2(1,7),Vector2(1,8),
+#		Vector2(2,0),Vector2(2,1),Vector2(2,2),Vector2(2,3),Vector2(2,4),Vector2(2,5),Vector2(2,6),Vector2(2,7),Vector2(2,8),
+#		Vector2(3,0),Vector2(3,1),Vector2(3,2),Vector2(3,3),Vector2(3,4),Vector2(3,5),Vector2(3,6),Vector2(3,7),Vector2(3,8),
+#		Vector2(4,0),Vector2(4,1),Vector2(4,2),Vector2(4,3),Vector2(4,4),Vector2(4,5),Vector2(4,6),Vector2(4,7),Vector2(4,8),
+#		Vector2(5,0),Vector2(5,1),Vector2(5,2),Vector2(5,3),Vector2(5,4),Vector2(5,5),Vector2(5,6),Vector2(5,7),Vector2(5,8),
+#		Vector2(6,0),Vector2(6,1),Vector2(6,2),Vector2(6,3),Vector2(6,4),Vector2(6,5),Vector2(6,6),Vector2(6,7),Vector2(6,8),
+#		Vector2(7,0),Vector2(7,1),Vector2(7,2),Vector2(7,3),Vector2(7,4),Vector2(7,5),Vector2(7,6),Vector2(7,7),Vector2(7,8),
+#		Vector2(8,0),Vector2(8,1),Vector2(8,2),Vector2(8,3),Vector2(8,4),Vector2(8,5),Vector2(8,6),Vector2(8,7),Vector2(8,8)
+#	],
+#	[
+#		Vector2(0,2),Vector2(0,3),Vector2(0,4),Vector2(0,5),Vector2(0,6),
+#		Vector2(1,1),Vector2(1,2),Vector2(1,3),Vector2(1,4),Vector2(1,5),Vector2(1,6),Vector2(1,7),
+#		Vector2(2,0),Vector2(2,1),Vector2(2,2),Vector2(2,3),Vector2(2,4),Vector2(2,5),Vector2(2,6),Vector2(2,7),Vector2(2,8),
+#		Vector2(3,0),Vector2(3,1),Vector2(3,2),Vector2(3,6),Vector2(3,7),Vector2(3,8),
+#		Vector2(4,0),Vector2(4,1),Vector2(4,2),Vector2(4,6),Vector2(4,7),Vector2(4,8),
+#		Vector2(5,0),Vector2(5,1),Vector2(5,2),Vector2(5,6),Vector2(5,7),Vector2(5,8),
+#		Vector2(6,0),Vector2(6,1),Vector2(6,2),Vector2(6,3),Vector2(6,4),Vector2(6,5),Vector2(6,6),Vector2(6,7),Vector2(6,8),
+#		Vector2(7,1),Vector2(7,2),Vector2(7,3),Vector2(7,4),Vector2(7,5),Vector2(7,6),Vector2(7,7),
+#		Vector2(8,2),Vector2(8,3),Vector2(8,4),Vector2(8,5),Vector2(8,6)
+#	],
+#	[
+#		Vector2(0,3),Vector2(0,4),Vector2(0,5),
+#		Vector2(1,3),Vector2(1,4),Vector2(1,5),
+#		Vector2(2,3),Vector2(2,4),Vector2(2,5),
+#		Vector2(3,0),Vector2(3,1),Vector2(3,2),Vector2(3,3),Vector2(3,4),Vector2(3,5),Vector2(3,6),Vector2(3,7),Vector2(3,8),
+#		Vector2(4,0),Vector2(4,1),Vector2(4,2),Vector2(4,3),Vector2(4,4),Vector2(4,5),Vector2(4,6),Vector2(4,7),Vector2(4,8),
+#		Vector2(5,0),Vector2(5,1),Vector2(5,2),Vector2(5,3),Vector2(5,4),Vector2(5,5),Vector2(5,6),Vector2(5,7),Vector2(5,8),
+#		Vector2(6,3),Vector2(6,4),Vector2(6,5),
+#		Vector2(7,3),Vector2(7,4),Vector2(7,5),
+#		Vector2(8,3),Vector2(8,4),Vector2(8,5)
+#	],
+#	[
+#		Vector2(0,4),
+#		Vector2(1,3),Vector2(1,4),Vector2(1,5),
+#		Vector2(2,2),Vector2(2,3),Vector2(2,4),Vector2(2,5),Vector2(2,6),
+#		Vector2(3,1),Vector2(3,2),Vector2(3,3),Vector2(3,4),Vector2(3,5),Vector2(3,6),Vector2(3,7),
+#		Vector2(4,0),Vector2(4,1),Vector2(4,2),Vector2(4,3),Vector2(4,4),Vector2(4,5),Vector2(4,6),Vector2(4,7),Vector2(4,8),
+#		Vector2(5,1),Vector2(5,2),Vector2(5,3),Vector2(5,4),Vector2(5,5),Vector2(5,6),Vector2(5,7),
+#		Vector2(6,2),Vector2(6,3),Vector2(6,4),Vector2(6,5),Vector2(6,6),
+#		Vector2(7,3),Vector2(7,4),Vector2(7,5),
+#		Vector2(8,4)
+#	],
+#	[
+#		Vector2(1,2),Vector2(1,3),Vector2(1,4),Vector2(1,5),Vector2(1,6),
+#		Vector2(2,1),Vector2(2,2),Vector2(2,3),Vector2(2,4),Vector2(2,5),Vector2(2,6),Vector2(2,7),
+#		Vector2(3,0),Vector2(3,1),Vector2(3,2),Vector2(3,6),Vector2(3,7),Vector2(3,8),
+#		Vector2(4,0),Vector2(4,1),Vector2(4,7),Vector2(4,8),
+#		Vector2(5,0),Vector2(5,1),Vector2(5,2),Vector2(5,6),Vector2(5,7),Vector2(5,8),
+#		Vector2(6,1),Vector2(6,2),Vector2(6,3),Vector2(6,4),Vector2(6,5),Vector2(6,6),Vector2(6,7),
+#		Vector2(7,2),Vector2(7,3),Vector2(7,4),Vector2(7,5),Vector2(7,6)
+#	],
+#	[
+#		Vector2(0,0),Vector2(0,1),Vector2(0,2),Vector2(0,3),Vector2(0,4),Vector2(0,5),Vector2(0,6),Vector2(0,7),Vector2(0,8),
+#		Vector2(1,0),Vector2(1,1),Vector2(1,2),Vector2(1,3),Vector2(1,4),Vector2(1,5),Vector2(1,6),Vector2(1,7),Vector2(1,8),
+#		Vector2(2,0),Vector2(2,1),Vector2(2,7),Vector2(2,8),
+#		Vector2(3,0),Vector2(3,1),Vector2(3,7),Vector2(3,8),
+#		Vector2(4,0),Vector2(4,1),Vector2(4,7),Vector2(4,8),
+#		Vector2(5,0),Vector2(5,1),Vector2(5,7),Vector2(5,8),
+#		Vector2(6,0),Vector2(6,1),Vector2(6,7),Vector2(6,8),
+#		Vector2(7,0),Vector2(7,1),Vector2(7,2),Vector2(7,3),Vector2(7,4),Vector2(7,5),Vector2(7,6),Vector2(7,7),Vector2(7,8),
+#		Vector2(8,0),Vector2(8,1),Vector2(8,2),Vector2(8,3),Vector2(8,4),Vector2(8,5),Vector2(8,6),Vector2(8,7),Vector2(8,8)
+#	],
+#	[
+#		Vector2(0,0),Vector2(0,2),Vector2(0,3),Vector2(0,5),Vector2(0,6),Vector2(0,7),Vector2(0,8),
+#		Vector2(1,1),Vector2(1,2),Vector2(1,4),Vector2(1,5),Vector2(1,6),Vector2(1,7),Vector2(1,8),
+#		Vector2(2,0),Vector2(2,1),Vector2(2,3),Vector2(2,4),Vector2(2,5),Vector2(2,6),Vector2(2,7),Vector2(2,8),
+#		Vector2(3,0),Vector2(3,2),Vector2(3,3),Vector2(3,4),Vector2(3,5),Vector2(3,6),Vector2(3,7),Vector2(3,8),
+#		Vector2(4,1),Vector2(4,2),Vector2(4,3),Vector2(4,4),Vector2(4,5),Vector2(4,6),Vector2(4,7),
+#		Vector2(5,0),Vector2(5,1),Vector2(5,2),Vector2(5,3),Vector2(5,4),Vector2(5,5),Vector2(5,6),Vector2(5,8),
+#		Vector2(6,0),Vector2(6,1),Vector2(6,2),Vector2(6,3),Vector2(6,4),Vector2(6,5),Vector2(6,7),Vector2(6,8),
+#		Vector2(7,0),Vector2(7,1),Vector2(7,2),Vector2(7,3),Vector2(7,4),Vector2(7,6),Vector2(7,7),
+#		Vector2(8,0),Vector2(8,1),Vector2(8,2),Vector2(8,3),Vector2(8,5),Vector2(8,6),Vector2(8,8)
+#	],
+#	[
+#		Vector2(0,0),Vector2(0,1),Vector2(0,2),Vector2(0,3),Vector2(0,4),Vector2(0,5),Vector2(0,6),Vector2(0,7),Vector2(0,8),
+#		Vector2(1,0),Vector2(1,2),Vector2(1,4),Vector2(1,6),Vector2(1,8),
+#		Vector2(2,0),Vector2(2,1),Vector2(2,2),Vector2(2,3),Vector2(2,4),Vector2(2,5),Vector2(2,6),Vector2(2,7),Vector2(2,8),
+#		Vector2(3,0),Vector2(3,2),Vector2(3,4),Vector2(3,6),Vector2(3,8),
+#		Vector2(4,0),Vector2(4,1),Vector2(4,2),Vector2(4,3),Vector2(4,4),Vector2(4,5),Vector2(4,6),Vector2(4,7),Vector2(4,8),
+#		Vector2(5,0),Vector2(5,2),Vector2(5,4),Vector2(5,6),Vector2(5,8),
+#		Vector2(6,0),Vector2(6,1),Vector2(6,2),Vector2(6,3),Vector2(6,4),Vector2(6,5),Vector2(6,6),Vector2(6,7),Vector2(6,8),
+#		Vector2(7,0),Vector2(7,2),Vector2(7,4),Vector2(7,6),Vector2(7,8),
+#		Vector2(8,0),Vector2(8,1),Vector2(8,2),Vector2(8,3),Vector2(8,4),Vector2(8,5),Vector2(8,6),Vector2(8,7),Vector2(8,8)
+#	]
+#	]
 }
 
 var score = 0
@@ -429,7 +527,7 @@ func rotateChain(chainPos):
 	var chain = getChain(chainPos)
 	if chain == null:
 		return
-	if chain["color"] == -1 || chainShapes[chain["shape"]]["steps"] == 1:
+	if chain["rotationActive"] || (chain["color"] == -1 || chainShapes[chain["shape"]]["steps"] == 1):
 		return
 	chain["rotationActive"] = true
 	rotatingChainsCount += 1
