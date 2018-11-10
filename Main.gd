@@ -61,7 +61,7 @@ func _process(delta):
 var scene = "game"
 var timeAttack = true
 var levelData = {
-	"target":250,
+	"target":50,
 	"tiles":[
 		Vector2(0,3),Vector2(0,4),Vector2(0,5),
 		Vector2(1,3),Vector2(1,4),Vector2(1,5),
@@ -175,6 +175,7 @@ var gameOverActive = false
 var gameOverDrop = false
 var gameOverTime = 0
 var gameOver = false
+var levelComplete = false
 var levelEndActive = false
 var levelEndTime = 0
 
@@ -210,7 +211,8 @@ var onscreenMessage = {"type":null,"time":0,"active":false}
 var onscreenMessageTypes = {
 	"shuffle":{"text":"Shuffling...","color":Color(1.0, 1.0, 0.0),"maxTime":2},
 	"gameOverMoves":{"text":"No more shuffles left!","color":Color(1.0, 0.0, 0.0),"maxTime":10},
-	"gameOverTime":{"text":"Time's up!","color":Color(1.0, 0.0, 0.0),"maxTime":10}
+	"gameOverTime":{"text":"Time's up!","color":Color(1.0, 0.0, 0.0),"maxTime":10},
+	"levelComplete":{"text":"Level completed!","color":Color(0.0, 1.0, 0.0),"maxTime":6}
 }
 
 func startGame():
@@ -227,6 +229,14 @@ func endGame():
 func endLevel():
 	levelEndActive = true
 	interactionAllowed = false
+
+func completeLevel():
+	levelComplete = true
+	interactionAllowed = false
+	displayOnscreenMessage("levelComplete")
+	for i in range(boardTiles.size()):
+		var boardPos = boardTiles.keys()[i]
+		removeChain(boardPos)
 
 func initBoard():
 	var levelTiles = levelData["tiles"]
@@ -437,11 +447,14 @@ func detectChainMatches():
 		fillHoles()
 		fillHolesUp()
 		interactionAllowed = false
-	elif !checkMoves():
-		if !timeAttack && shufflesRemaining == 0:
-			endGame()
-		else:
-			displayOnscreenMessage("shuffle")
+	else:
+		if brokenChains >= levelData["target"]:
+			completeLevel()
+		elif !checkMoves():
+			if !timeAttack && shufflesRemaining == 0:
+				endGame()
+			else:
+				displayOnscreenMessage("shuffle")
 
 func fillHoles():
 	for i in range(boardSize[0]):
@@ -535,6 +548,8 @@ func rotateChain(chainPos):
 
 func removeChain(chainPos):
 	var chain = getChain(chainPos)
+	if chain == null:
+		return
 	boardTiles[chainPos].erase("chain")
 	var chainDropped = chain.duplicate()
 	chainDropped["rotationStep"] = 0
@@ -642,7 +657,7 @@ func calculateAnimations():
 			onscreenMessage["active"] = false
 			if onscreenMessage["type"] == "shuffle":
 				shuffleChains()
-			if onscreenMessage["type"] == "gameOverMoves" || onscreenMessage["type"] == "gameOverTime":
+			if onscreenMessage["type"] == "gameOverMoves" || onscreenMessage["type"] == "gameOverTime" || onscreenMessage["type"] == "levelComplete":
 				endLevel()
 	# Score
 	scoreAnimation = round(min(scoreAnimation + (((score - scoreAnimation) + 100) * dt), score))
@@ -656,7 +671,7 @@ func calculateAnimations():
 			scoreTexts.remove(i)
 			i -= 1
 	# User interaction
-	if (fallingChainsCount == 0 && shufflingChainsCount == 0) && (!onscreenMessage["active"] && (!gameOver && !gameOverActive)):
+	if (fallingChainsCount == 0 && shufflingChainsCount == 0) && (!onscreenMessage["active"] && (!gameOver && !gameOverActive && !levelComplete)):
 		if !interactionAllowed:
 			interactionAllowed = true
 			detectChainMatches()
@@ -876,6 +891,10 @@ func drawOnscreenMessage():
 			screenAlpha = restrictValue(abs(onscreenMessage["time"] - 10) / 2, 0.0, 0.5)
 		messageAlpha = restrictValue((onscreenMessage["time"] - 1) / 3, 0.0, 1.0)
 		messageOffset = Vector2(0, pow(restrictValue(onscreenMessage["time"] - 8, 0, 2), 3) * (windowSize[1] / 2))
+	if onscreenMessage["type"] == "levelComplete":
+		screenAlpha = restrictValue((abs(onscreenMessage["time"] - 2.5) - 2.5) * -1, 0.0, 0.5)
+		messageAlpha = restrictValue(5 - onscreenMessage["time"], 0.0, 1.0)
+		messageOffset = Vector2((restrictValue(1 - (onscreenMessage["time"] / 0.5), 0.0, 1.0) * 1.2) * (windowSize[0] / 2), 0)
 	draw_rect(Rect2(Vector2(0, 0), windowSize), Color(0.0, 0.0, 0.0, screenAlpha), true)
 	drawText((windowSize / 2) + messageOffset, onscreenMessageData["text"], "normal", onscreenMessageData["color"] * Color(1.0, 1.0, 1.0, messageAlpha), {"shadow":true,"halign":0,"valign":0})
 
