@@ -863,26 +863,27 @@ func drawGameBar():
 	var gameBarColor = Color(0.0, 0.5, 1.0)
 	var gameBarTextColor = Color(1.0, 1.0, 0.0)
 	drawFancyRect(gameBarRect, gameBarColor, gameBarBorderSize)
-	drawText(Vector2(1, 0) * characterPixelSize, "3-2", "normal", gameBarTextColor, {"shadow":true}) 
-	drawText(Vector2(24, 0) * characterPixelSize, "Score:", "normal", gameBarTextColor, {"shadow":true})
-	drawText(Vector2(96, 0) * characterPixelSize, str(scoreAnimation), "normal", gameBarTextColor, {"shadow":true,"halign":1})
-	drawText(Vector2(100, 0) * characterPixelSize, "Progress:", "normal", gameBarTextColor, {"shadow":true})
+	drawText(Vector2(1, 2) * characterPixelSize, "3-2", "normal", gameBarTextColor, {"shadow":true}) 
+	drawText(Vector2(24, 2) * characterPixelSize, "Score:", "normal", gameBarTextColor, {"shadow":true})
+	drawText(Vector2(96, 2) * characterPixelSize, str(scoreAnimation), "normal", gameBarTextColor, {"shadow":true,"halign":1})
+	drawText(Vector2(100, 2) * characterPixelSize, "Progress:", "normal", gameBarTextColor, {"shadow":true})
 	var progressBarRect = Rect2(Vector2(150, 2) * characterPixelSize, Vector2(48, 8) * characterPixelSize)
 	var progressBarColor = Color(1.0, 0.5, 0.0)
 	var progressBarBackColor = Color(0.5, 0.5, 0.5)
 	drawFancyProgressBar(progressBarRect, progressBarBackColor, progressBarColor, gameBarBorderSize, levelProgressAnimation)
-	var progressBarTextPos = Vector2(progressBarRect.position[0] + (progressBarRect.size[0] / 2), 0)
+	var progressBarTextPos = Vector2(progressBarRect.position[0] + (progressBarRect.size[0] / 2), 2 * characterPixelSize[1])
 	var progressBarText = str(floor(levelProgressAnimation * 100)) + "%"
 	drawText(progressBarTextPos, progressBarText, "normal", gameBarTextColor, {"halign":0})
 	if timeAttack:
-		drawText(Vector2(202, 0) * characterPixelSize, "Time:", "normal", gameBarTextColor, {"shadow":true})
+		drawText(Vector2(202, 2) * characterPixelSize, "Time:", "normal", gameBarTextColor, {"shadow":true})
 		var timeBarRect = Rect2(Vector2(226, 2) * characterPixelSize, Vector2(48, 8) * characterPixelSize)
 		var timeBarColor = Color(0.0, 0.75, 0.0)
 		var timeBarBackColor = Color(0.5, 0.5, 0.5)
 		drawFancyProgressBar(timeBarRect, timeBarBackColor, timeBarColor, gameBarBorderSize, min(timeLeft, 60) / 60)
-		var timeBarTextPos = Vector2(timeBarRect.position[0] + (timeBarRect.size[0] / 2), 0)
+		var timeBarTextPos = Vector2(timeBarRect.position[0] + (timeBarRect.size[0] / 2), 2 * characterPixelSize[1])
 		var timeBarText = str(ceil(timeLeft * 10) / 10.0) + "s"
 		drawText(timeBarTextPos, timeBarText, "normal", gameBarTextColor, {"halign":0})
+		drawText(Vector2(278, 2) * characterPixelSize, "Emg. shuffles: " + str(shufflesRemaining), "normal", gameBarTextColor, {"shadow":true})
 
 func drawScoreTexts():
 	for i in range(scoreTexts.size()):
@@ -982,7 +983,7 @@ func drawCharacter(characterPos, character, characterFont, characterColor = Colo
 	var fontHeightOffset = font["heightOffset"]
 	var characterTextureRect = characterTextureRect(character, characterFont)
 	var characterRect = Rect2(characterPos, characterTextureRect.size * characterPixelSize)
-	characterRect.position[1] -= fontHeightOffset
+	characterRect.position[1] -= fontHeightOffset * characterPixelSize[1]
 	draw_texture_rect_region(fontTexture, characterRect, characterTextureRect, characterColor)
 
 func drawTextLine(textPos, text, textFont, textColor = Color(1.0, 1.0, 1.0), textFlags = {}):
