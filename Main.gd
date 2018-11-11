@@ -61,7 +61,7 @@ func _process(delta):
 var scene = "game"
 var timeAttack = true
 var levelData = {
-	"target":50,
+	"target":250,
 	"tiles":[
 		Vector2(0,3),Vector2(0,4),Vector2(0,5),
 		Vector2(1,3),Vector2(1,4),Vector2(1,5),
@@ -212,7 +212,7 @@ var onscreenMessageTypes = {
 	"shuffle":{"text":"Shuffling...","color":Color(1.0, 1.0, 0.0),"maxTime":2},
 	"gameOverMoves":{"text":"No more shuffles left!","color":Color(1.0, 0.0, 0.0),"maxTime":10},
 	"gameOverTime":{"text":"Time's up!","color":Color(1.0, 0.0, 0.0),"maxTime":10},
-	"levelComplete":{"text":"Level completed!","color":Color(0.0, 1.0, 0.0),"maxTime":6}
+	"levelComplete":{"text":"Level completed!","color":Color(0.0, 1.0, 0.0),"maxTime":5}
 }
 
 func startGame():
@@ -257,7 +257,7 @@ func initChains():
 					break
 
 func randomChainData():
-	var chainColor = random(2, 4)
+	var chainColor = random(0, 1)
 	#if random(1, 100) == 1:
 	#	chainColor = -2
 	#if random(1, 50) == 1:
@@ -659,8 +659,9 @@ func calculateAnimations():
 				shuffleChains()
 			if onscreenMessage["type"] == "gameOverMoves" || onscreenMessage["type"] == "gameOverTime" || onscreenMessage["type"] == "levelComplete":
 				endLevel()
-	# Score
+	# Score & level progress
 	scoreAnimation = round(min(scoreAnimation + (((score - scoreAnimation) + 100) * dt), score))
+	levelProgressAnimation = min(levelProgressAnimation + (((levelProgress - levelProgressAnimation) + 0.001) * (dt * 3)), min(levelProgress, 1))
 	# Score texts
 	for i in range(scoreTexts.size()):
 		if i >= scoreTexts.size():
@@ -760,6 +761,7 @@ func _draw():
 		drawBoardTiles()
 		drawBoardChains()
 		drawDroppedChains()
+		drawGameBar()
 		drawScoreTexts()
 		drawOnscreenMessage()
 		var barText = "Score: " + str(scoreAnimation) + "\nChains broken: " + str(brokenChains) + "\nProgress: " + str(floor(levelProgress * 100)) + "%"
@@ -767,7 +769,7 @@ func _draw():
 			barText += "\nTime left: " + str(ceil(timeLeft * 10) / 10.0) + "s"
 		else:
 			barText += "\nShuffles remaining: " + str(shufflesRemaining)
-		drawText(Vector2(8, 8), barText, "normal", Color(1.0, 1.0, 0.0), {"shadow":true})
+		#drawText(Vector2(8, 8), barText, "normal", Color(1.0, 1.0, 0.0), {"shadow":true})
 
 func chainTextureRect(chainData):
 	var chain = chainData
@@ -855,6 +857,33 @@ func drawChain(boardPos, chain):
 		draw_texture_rect_region(chainPowerTileSetTexture, chainPowerRectShadow, chainPowerTextureRect, Color(0.0, 0.0, 0.0, 0.5))
 		draw_texture_rect_region(chainPowerTileSetTexture, chainPowerRect, chainPowerTextureRect, Color(1.0, 1.0, 1.0))
 
+func drawGameBar():
+	var gameBarRect = Rect2(Vector2(0, 0), Vector2(windowSize[0], characterPixelSize[1] * 12))
+	var gameBarBorderSize = {"up":characterPixelSize[1],"down":characterPixelSize[1],"left":characterPixelSize[0],"right":characterPixelSize[0]}
+	var gameBarColor = Color(0.0, 0.5, 1.0)
+	var gameBarTextColor = Color(1.0, 1.0, 0.0)
+	drawFancyRect(gameBarRect, gameBarColor, gameBarBorderSize)
+	drawText(Vector2(1, 0) * characterPixelSize, "3-2", "normal", gameBarTextColor, {"shadow":true}) 
+	drawText(Vector2(24, 0) * characterPixelSize, "Score:", "normal", gameBarTextColor, {"shadow":true})
+	drawText(Vector2(96, 0) * characterPixelSize, str(scoreAnimation), "normal", gameBarTextColor, {"shadow":true,"halign":1})
+	drawText(Vector2(100, 0) * characterPixelSize, "Progress:", "normal", gameBarTextColor, {"shadow":true})
+	var progressBarRect = Rect2(Vector2(150, 2) * characterPixelSize, Vector2(48, 8) * characterPixelSize)
+	var progressBarColor = Color(1.0, 0.5, 0.0)
+	var progressBarBackColor = Color(0.5, 0.5, 0.5)
+	drawFancyProgressBar(progressBarRect, progressBarBackColor, progressBarColor, gameBarBorderSize, levelProgressAnimation)
+	var progressBarTextPos = Vector2(progressBarRect.position[0] + (progressBarRect.size[0] / 2), 0)
+	var progressBarText = str(floor(levelProgressAnimation * 100)) + "%"
+	drawText(progressBarTextPos, progressBarText, "normal", gameBarTextColor, {"halign":0})
+	if timeAttack:
+		drawText(Vector2(202, 0) * characterPixelSize, "Time:", "normal", gameBarTextColor, {"shadow":true})
+		var timeBarRect = Rect2(Vector2(226, 2) * characterPixelSize, Vector2(48, 8) * characterPixelSize)
+		var timeBarColor = Color(0.0, 0.75, 0.0)
+		var timeBarBackColor = Color(0.5, 0.5, 0.5)
+		drawFancyProgressBar(timeBarRect, timeBarBackColor, timeBarColor, gameBarBorderSize, min(timeLeft, 60) / 60)
+		var timeBarTextPos = Vector2(timeBarRect.position[0] + (timeBarRect.size[0] / 2), 0)
+		var timeBarText = str(ceil(timeLeft * 10) / 10.0) + "s"
+		drawText(timeBarTextPos, timeBarText, "normal", gameBarTextColor, {"halign":0})
+
 func drawScoreTexts():
 	for i in range(scoreTexts.size()):
 		var scoreText = scoreTexts[i]
@@ -897,6 +926,29 @@ func drawOnscreenMessage():
 		messageOffset = Vector2((restrictValue(1 - (onscreenMessage["time"] / 0.5), 0.0, 1.0) * 1.2) * (windowSize[0] / 2), 0)
 	draw_rect(Rect2(Vector2(0, 0), windowSize), Color(0.0, 0.0, 0.0, screenAlpha), true)
 	drawText((windowSize / 2) + messageOffset, onscreenMessageData["text"], "normal", onscreenMessageData["color"] * Color(1.0, 1.0, 1.0, messageAlpha), {"shadow":true,"halign":0,"valign":0})
+
+func drawFancyRect(rect, color, borderSize):
+	var lightColor = Color(1.0, 1.0, 1.0, 0.2)
+	var darkColor = Color(0.0, 0.0, 0.0, 0.2)
+	var upRect = Rect2(rect.position, Vector2(rect.size[0], borderSize["up"]))
+	var downRect = Rect2(rect.position + Vector2(0, rect.size[1] - borderSize["down"]), Vector2(rect.size[0], borderSize["down"]))
+	var leftRect = Rect2(rect.position, Vector2(borderSize["left"], rect.size[1]))
+	var rightRect = Rect2(rect.position + Vector2(rect.size[0] - borderSize["right"], 0), Vector2(borderSize["right"], rect.size[1]))
+	draw_rect(rect, color, true)
+	draw_rect(upRect, lightColor, true)
+	draw_rect(leftRect, lightColor, true)
+	draw_rect(downRect, darkColor, true)
+	draw_rect(rightRect, darkColor, true)
+
+func drawFancyProgressBar(rect, color, barColor, borderSize, fill):
+	drawFancyRect(rect, color, borderSize)
+	var cutPart = rect.size[0] * (1 - fill)
+	var barRect = rect
+	var barBorderSize = borderSize.duplicate()
+	barRect.size[0] -= cutPart
+	barBorderSize["left"] = min(borderSize["left"], barRect.size[0])
+	barBorderSize["right"] = max(borderSize["right"] - cutPart, 0)
+	drawFancyRect(barRect, barColor, barBorderSize)
 
 func prepareCharacterSet():
 	for i in range(fonts.size()):
