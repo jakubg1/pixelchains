@@ -180,7 +180,6 @@ var levelEndActive = false
 var levelEndTime = 0
 
 var posDirections = [Vector2(0, -1), Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0)]
-var tileSize = Vector2(64, 64)
 var boardSize = Vector2(9, 9)
 
 var boardTiles = {}
@@ -645,7 +644,7 @@ func calculateAnimations():
 		droppedChain["time"] += dt
 		droppedChain["velocity"][1] += droppedChain["time"] / 2
 		droppedChain["position"] += droppedChain["velocity"] * dt
-		if droppedChain["position"][1] >= tileSize[1]:
+		if droppedChain["position"][1] >= boardTilePos(windowSize)[1]:
 			droppedChains.remove(i)
 			i -= 1
 	# Messages
@@ -734,10 +733,12 @@ func displayOnscreenMessage(type):
 
 
 
-# These variables are necessary because dynamic loading doesn't work anymore.
+var pixelSize = Vector2(4, 4)
 var tileTexture = load("res://img/tile.png")
 var chainTileSetTexture = load("res://img/chaintileset.png")
+var chainTileSpriteSize = Vector2(16, 16)
 var chainPowerTileSetTexture = load("res://img/powertileset.png")
+var chainPowerSpriteSize = Vector2(8, 8)
 
 # Of course, this array will be loaded from external file.
 var fonts = {
@@ -752,7 +753,6 @@ var fonts = {
 		"heightOffset":0
 	}
 }
-var characterPixelSize = Vector2(4, 4)
 
 func _draw():
 	if scene == "menu":
@@ -775,7 +775,6 @@ func chainTextureRect(chainData):
 	var chain = chainData
 	if typeof(chainData) == TYPE_VECTOR2:
 		chain = getChain(chainData)
-	var chainSpriteSize = Vector2(16, 16)
 	var chainSpritePos = Vector2(0, 0)
 	if chain["rotationStep"] == 0:
 		var chainConnections = chain["visibleConnections"]
@@ -786,21 +785,23 @@ func chainTextureRect(chainData):
 	else:
 		chainSpritePos[0] = 15 + chain["rotationStep"]
 	chainSpritePos[1] = (4 * (chain["shape"] - 1)) + chain["rotation"]
-	return Rect2(chainSpritePos * chainSpriteSize, chainSpriteSize)
+	return Rect2(chainSpritePos * chainTileSpriteSize, chainTileSpriteSize)
 
 func chainPowerTextureRect(chainPower):
-	var chainPowerSpriteSize = Vector2(8, 8)
 	var chainPowerSpritePos = Vector2(chainPowers.find(chainPower), 0)
 	return Rect2(chainPowerSpritePos * chainPowerSpriteSize, chainPowerSpriteSize)
 
 func globalTilePos(boardPos):
-	return (boardPos * tileSize) + ((windowSize - (boardSize * tileSize)) / 2)
+	return (boardPos * globalTileSize()) + ((windowSize - (boardSize * globalTileSize())) / 2)
+
+func globalTileSize():
+	return chainTileSpriteSize * pixelSize
 
 func globalTileRect(boardPos):
-	return Rect2(globalTilePos(boardPos), tileSize)
+	return Rect2(globalTilePos(boardPos), globalTileSize())
 
 func boardTilePos(globalPos):
-	return ((globalPos - ((windowSize - (boardSize * tileSize)) / 2)) / tileSize)
+	return ((globalPos - ((windowSize - (boardSize * globalTileSize())) / 2)) / globalTileSize())
 
 func exactBoardTilePos(globalPos):
 	var boardPos = boardTilePos(globalPos).floor()
@@ -816,7 +817,7 @@ func drawBoardTiles():
 				var tileRectSize = 1
 				if levelEndActive:
 					tileRectSize = restrictValue(1 - (levelEndTime - ((i + j) * 0.05)), 0.0, 1.0)
-				tileRect.position += (tileSize / 2) * (1 - tileRectSize)
+				tileRect.position += (globalTileSize() / 2) * (1 - tileRectSize)
 				tileRect.size *= tileRectSize
 				draw_texture_rect(tileTexture, tileRect, false)
 
@@ -830,66 +831,70 @@ func drawDroppedChains():
 	for i in range(droppedChains.size()):
 		var droppedChain = droppedChains[i]
 		var droppedChainPos = droppedChain["position"]
-		drawChain(droppedChainPos, droppedChain)
+		drawChain(droppedChainPos, droppedChain, false)
 
-func drawChain(boardPos, chain):
+func drawChain(boardPos, chain, highFade = true):
 	if chain == null:
 		return
 	var chainTextureRect = chainTextureRect(chain)
 	var chainColor = chainColors[chain["color"]]
-	var chainOffset = Vector2(0, chain["fallOffset"] * -tileSize[1]) + chain["gameOverOffset"]
+	var chainOffset = Vector2(0, chain["fallOffset"] * -globalTileSize()[1]) + chain["gameOverOffset"]
 	if chain["shuffleActive"]:
-		chainOffset += ((chain["shufflePosition"] - boardPos) * ((sin((chain["shuffleTime"] * PI) + (PI / 2)) + 1) / 2)) * tileSize
+		chainOffset += ((chain["shufflePosition"] - boardPos) * ((sin((chain["shuffleTime"] * PI) + (PI / 2)) + 1) / 2)) * globalTileSize()
 	var chainRect = globalTileRect(boardPos)
 	var chainRectShadow = chainRect
 	chainRect.position += chainOffset
-	chainRectShadow.position += chainOffset + Vector2(4, 4)
-	draw_texture_rect_region(chainTileSetTexture, chainRectShadow, chainTextureRect, Color(0.0, 0.0, 0.0, 0.5))
-	draw_texture_rect_region(chainTileSetTexture, chainRect, chainTextureRect, chainColor)
+	chainRectShadow.position += chainOffset + pixelSize
+	var chainAlpha = 1
+	if highFade:
+		chainAlpha = Color(1.0, 1.0, 1.0, restrictValue((boardPos[1] - chain["fallOffset"]) + 2, 0, 1))
+	draw_texture_rect_region(chainTileSetTexture, chainRectShadow, chainTextureRect, Color(0.0, 0.0, 0.0, 0.5) * chainAlpha)
+	draw_texture_rect_region(chainTileSetTexture, chainRect, chainTextureRect, chainColor * chainAlpha)
 	if chain["power"] != null:
 		var chainPowerTextureRect = chainPowerTextureRect(chain["power"])
 		var chainPowerRect = chainRect
 		var chainPowerRectShadow = chainRectShadow
-		chainPowerRect.position += Vector2(16, 16)
-		chainPowerRectShadow.position += Vector2(16, 16)
+		var chainPowerRectOffset = ((chainTileSpriteSize - chainPowerSpriteSize) * pixelSize) / 2
+		chainPowerRect.position += chainPowerRectOffset
+		chainPowerRectShadow.position += chainPowerRectOffset
 		chainPowerRect.size /= 2
 		chainPowerRectShadow.size /= 2
-		draw_texture_rect_region(chainPowerTileSetTexture, chainPowerRectShadow, chainPowerTextureRect, Color(0.0, 0.0, 0.0, 0.5))
-		draw_texture_rect_region(chainPowerTileSetTexture, chainPowerRect, chainPowerTextureRect, Color(1.0, 1.0, 1.0))
+		draw_texture_rect_region(chainPowerTileSetTexture, chainPowerRectShadow, chainPowerTextureRect, Color(0.0, 0.0, 0.0, 0.5) * chainAlpha)
+		draw_texture_rect_region(chainPowerTileSetTexture, chainPowerRect, chainPowerTextureRect, Color(1.0, 1.0, 1.0) * chainAlpha)
 
 func drawGameBar():
-	var gameBarRect = Rect2(Vector2(0, 0), Vector2(windowSize[0], characterPixelSize[1] * 12))
-	var gameBarBorderSize = {"up":characterPixelSize[1],"down":characterPixelSize[1],"left":characterPixelSize[0],"right":characterPixelSize[0]}
+	var gameBarRect = Rect2(Vector2(0, 0), Vector2(windowSize[0], pixelSize[1] * 12))
+	var gameBarBorderSize = {"up":pixelSize[1],"down":pixelSize[1],"left":pixelSize[0],"right":pixelSize[0]}
 	var gameBarColor = Color(0.0, 0.5, 1.0)
 	var gameBarTextColor = Color(1.0, 1.0, 0.0)
 	drawFancyRect(gameBarRect, gameBarColor, gameBarBorderSize)
-	drawText(Vector2(1, 2) * characterPixelSize, "3-2", "normal", gameBarTextColor, {"shadow":true}) 
-	drawText(Vector2(24, 2) * characterPixelSize, "Score:", "normal", gameBarTextColor, {"shadow":true})
-	drawText(Vector2(96, 2) * characterPixelSize, str(scoreAnimation), "normal", gameBarTextColor, {"shadow":true,"halign":1})
-	drawText(Vector2(100, 2) * characterPixelSize, "Progress:", "normal", gameBarTextColor, {"shadow":true})
-	var progressBarRect = Rect2(Vector2(150, 2) * characterPixelSize, Vector2(48, 8) * characterPixelSize)
+	drawText(Vector2(1, 2) * pixelSize, "3-2", "normal", gameBarTextColor, {"shadow":true})
+	drawText(Vector2(24, 2) * pixelSize, "Score:", "normal", gameBarTextColor, {"shadow":true})
+	drawText(Vector2(96, 2) * pixelSize, str(scoreAnimation), "normal", gameBarTextColor, {"shadow":true,"halign":1})
+	drawText(Vector2(100, 2) * pixelSize, "Progress:", "normal", gameBarTextColor, {"shadow":true})
+	var progressBarRect = Rect2(Vector2(150, 2) * pixelSize, Vector2(48, 8) * pixelSize)
 	var progressBarColor = Color(1.0, 0.5, 0.0)
 	var progressBarBackColor = Color(0.5, 0.5, 0.5)
 	drawFancyProgressBar(progressBarRect, progressBarBackColor, progressBarColor, gameBarBorderSize, levelProgressAnimation)
-	var progressBarTextPos = Vector2(progressBarRect.position[0] + (progressBarRect.size[0] / 2), 2 * characterPixelSize[1])
+	var progressBarTextPos = Vector2(progressBarRect.position[0] + (progressBarRect.size[0] / 2), 2 * pixelSize[1])
 	var progressBarText = str(floor(levelProgressAnimation * 100)) + "%"
 	drawText(progressBarTextPos, progressBarText, "normal", gameBarTextColor, {"halign":0})
 	if timeAttack:
-		drawText(Vector2(202, 2) * characterPixelSize, "Time:", "normal", gameBarTextColor, {"shadow":true})
-		var timeBarRect = Rect2(Vector2(226, 2) * characterPixelSize, Vector2(48, 8) * characterPixelSize)
+		drawText(Vector2(202, 2) * pixelSize, "Time:", "normal", gameBarTextColor, {"shadow":true})
+		var timeBarRect = Rect2(Vector2(226, 2) * pixelSize, Vector2(48, 8) * pixelSize)
 		var timeBarColor = Color(0.0, 0.75, 0.0)
 		var timeBarBackColor = Color(0.5, 0.5, 0.5)
 		drawFancyProgressBar(timeBarRect, timeBarBackColor, timeBarColor, gameBarBorderSize, min(timeLeft, 60) / 60)
-		var timeBarTextPos = Vector2(timeBarRect.position[0] + (timeBarRect.size[0] / 2), 2 * characterPixelSize[1])
+		var timeBarTextPos = Vector2(timeBarRect.position[0] + (timeBarRect.size[0] / 2), 2 * pixelSize[1])
 		var timeBarText = str(ceil(timeLeft * 10) / 10.0) + "s"
 		drawText(timeBarTextPos, timeBarText, "normal", gameBarTextColor, {"halign":0})
-		drawText(Vector2(278, 2) * characterPixelSize, "Emg. shuffles: " + str(shufflesRemaining), "normal", gameBarTextColor, {"shadow":true})
+		drawText(Vector2(278, 2) * pixelSize, "Emg. shuffles: " + str(shufflesRemaining), "normal", gameBarTextColor, {"shadow":true})
 
 func drawScoreTexts():
 	for i in range(scoreTexts.size()):
 		var scoreText = scoreTexts[i]
 		var scoreTextPos = globalTilePos(scoreText["position"] + Vector2(0.5, 0.5))
-		scoreTextPos[1] -= scoreText["time"] * 50
+		scoreTextPos[1] -= (scoreText["time"] * 15) * pixelSize[1]
 		var scoreTextText = str(scoreText["score"])
 		if scoreText["combo"] > 1:
 			scoreTextText += "\n" + str(scoreText["combo"]) + "x combo!"
@@ -977,13 +982,13 @@ func characterTextureRect(character, characterFont):
 func drawCharacter(characterPos, character, characterFont, characterColor = Color(1.0, 1.0, 1.0), characterFlags = {}):
 	if characterFlags.has("shadow") && characterFlags["shadow"]:
 		characterFlags.erase("shadow")
-		drawCharacter(characterPos + characterPixelSize, character, characterFont, Color(0.0, 0.0, 0.0, 0.5 * characterColor[3]), characterFlags)
+		drawCharacter(characterPos + pixelSize, character, characterFont, Color(0.0, 0.0, 0.0, 0.5 * characterColor[3]), characterFlags)
 	var font = fonts[characterFont]
 	var fontTexture = font["texture"]
 	var fontHeightOffset = font["heightOffset"]
 	var characterTextureRect = characterTextureRect(character, characterFont)
-	var characterRect = Rect2(characterPos, characterTextureRect.size * characterPixelSize)
-	characterRect.position[1] -= fontHeightOffset * characterPixelSize[1]
+	var characterRect = Rect2(characterPos, characterTextureRect.size * pixelSize)
+	characterRect.position[1] -= fontHeightOffset * pixelSize[1]
 	draw_texture_rect_region(fontTexture, characterRect, characterTextureRect, characterColor)
 
 func drawTextLine(textPos, text, textFont, textColor = Color(1.0, 1.0, 1.0), textFlags = {}):
@@ -997,7 +1002,7 @@ func drawTextLine(textPos, text, textFont, textColor = Color(1.0, 1.0, 1.0), tex
 			var characterData = fontCharacters[character]
 			lineLength += characterData["width"] + 1
 		lineLength -= 1
-		lineLength *= characterPixelSize[0]
+		lineLength *= pixelSize[0]
 		textPos[0] -= lineLength * ((textFlags["halign"] + 1) / 2.0)
 		textFlags.erase("halign")
 		drawTextLine(textPos, text, textFont, textColor, textFlags)
@@ -1008,12 +1013,12 @@ func drawTextLine(textPos, text, textFont, textColor = Color(1.0, 1.0, 1.0), tex
 		var characterPos = textPos + Vector2(characterOffset, 0)
 		var characterData = fontCharacters[character]
 		drawCharacter(characterPos, character, textFont, textColor, textFlags.duplicate())
-		characterOffset += (characterData["width"] + 1) * characterPixelSize[0]
+		characterOffset += (characterData["width"] + 1) * pixelSize[0]
 
 func drawText(textPos, text, textFont, textColor = Color(1.0, 1.0, 1.0), textFlags = {}):
 	var font = fonts[textFont]
 	var fontTexture = font["texture"]
-	var lineHeight = fontTexture.get_size()[1] * characterPixelSize[1]
+	var lineHeight = fontTexture.get_size()[1] * pixelSize[1]
 	var textLines = text.split("\n")
 	if textFlags.has("valign") && textFlags["valign"] != -1:
 		textPos[1] -= (lineHeight * textLines.size()) * ((textFlags["valign"] + 1) / 2.0)
