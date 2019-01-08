@@ -14,4 +14,4 @@ The documentation is in early development, you can browse it in the wiki.
 
 A small gif - how does the game look now:
 
-![](https://cdn.discordapp.com/attachments/490207110370426880/505423715262136330/chain1.gif)
+![](https://cdn.discordapp.com/attachments/524699310168997908/532308234514595844/chain11.gif)
