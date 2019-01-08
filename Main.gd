@@ -59,8 +59,9 @@ func _process(delta):
 	update()
 
 var scene = "game"
-var timeAttack = true
+var timeAttack = false
 var levelData = {
+	"colors":[0, 2, 3],
 	"target":250,
 	"tiles":[
 		Vector2(0,3),Vector2(0,4),Vector2(0,5),
@@ -169,7 +170,7 @@ var brokenChains = 0
 var levelProgress = 0
 var levelProgressAnimation = 0
 var combo = 1
-var shufflesRemaining = 0
+var shufflesRemaining = 2
 var timeLeft = 60
 var gameOverActive = false
 var gameOverDrop = false
@@ -256,7 +257,7 @@ func initChains():
 					break
 
 func randomChainData():
-	var chainColor = random(0, 1)
+	var chainColor = randomItem(levelData["colors"])
 	#if random(1, 100) == 1:
 	#	chainColor = -2
 	#if random(1, 50) == 1:
@@ -589,6 +590,8 @@ func shuffleChains():
 		shufflesRemaining -= 1
 
 func calculateAnimations():
+	# Such a big blob! Will be split in the future.
+	
 	# Chain animating
 	for i in range(boardTiles.size()):
 		var boardPos = boardTiles.keys()[i]
@@ -764,12 +767,6 @@ func _draw():
 		drawGameBar()
 		drawScoreTexts()
 		drawOnscreenMessage()
-		var barText = "Score: " + str(scoreAnimation) + "\nChains broken: " + str(brokenChains) + "\nProgress: " + str(floor(levelProgress * 100)) + "%"
-		if timeAttack:
-			barText += "\nTime left: " + str(ceil(timeLeft * 10) / 10.0) + "s"
-		else:
-			barText += "\nShuffles remaining: " + str(shufflesRemaining)
-		#drawText(Vector2(8, 8), barText, "normal", Color(1.0, 1.0, 0.0), {"shadow":true})
 
 func chainTextureRect(chainData):
 	var chain = chainData
@@ -877,7 +874,7 @@ func drawGameBar():
 	var progressBarBackColor = Color(0.5, 0.5, 0.5)
 	drawFancyProgressBar(progressBarRect, progressBarBackColor, progressBarColor, gameBarBorderSize, levelProgressAnimation)
 	var progressBarTextPos = Vector2(progressBarRect.position[0] + (progressBarRect.size[0] / 2), 2 * pixelSize[1])
-	var progressBarText = str(floor(levelProgressAnimation * 100)) + "%"
+	var progressBarText = str(floor((levelProgressAnimation + 0.0001) * 100)) + "%"
 	drawText(progressBarTextPos, progressBarText, "normal", gameBarTextColor, {"halign":0})
 	if timeAttack:
 		drawText(Vector2(202, 2) * pixelSize, "Time:", "normal", gameBarTextColor, {"shadow":true})
@@ -889,6 +886,8 @@ func drawGameBar():
 		var timeBarText = str(ceil(timeLeft * 10) / 10.0) + "s"
 		drawText(timeBarTextPos, timeBarText, "normal", gameBarTextColor, {"halign":0})
 		drawText(Vector2(278, 2) * pixelSize, "Emg. shuffles: " + str(shufflesRemaining), "normal", gameBarTextColor, {"shadow":true})
+	else:
+		drawText(Vector2(202, 2) * pixelSize, "Shuffles: " + str(shufflesRemaining), "normal", gameBarTextColor, {"shadow":true})
 
 func drawScoreTexts():
 	for i in range(scoreTexts.size()):
